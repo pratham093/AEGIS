@@ -1,5 +1,7 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 const BASE = typeof window === "undefined"
-  ? "http://localhost:8000/api"
+  ? `${API_URL}/api`
   : "/api";
 
 async function fetchJSON<T>(path: string): Promise<T> {

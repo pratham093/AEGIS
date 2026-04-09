@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (large files - regenerate with pipelines)
+data/raw/*.parquet
+data/features/*.parquet
+data/processed/*.parquet
+
+# Model artifacts
+models/**/*.pkl
+
+# Reports (regenerate with backtests)
+reports/figures/*.png
+reports/metrics/*.csv
+reports/metrics/*.json
+reports/metrics/*.txt

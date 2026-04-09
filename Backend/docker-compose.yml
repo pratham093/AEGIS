@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    image: aegis-api:latest
+    container_name: aegis-api
+    ports:
+      - "8000:8000"
+    environment:
+      - AEGIS_ENV=production
+      - CORS_ORIGINS=http://localhost:3000
+    volumes:
+      - ./data:/code/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

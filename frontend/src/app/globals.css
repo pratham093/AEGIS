@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Dark mode (default) */
+:root, .dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #141414;
+  --card-border: #252525;
+  --card-hover: #1a1a1a;
+  --muted: #737373;
+  --nav-bg: #0d0d0d;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-blue: #3b82f6;
+  --accent-purple: #a855f7;
+  --accent-orange: #f59e0b;
+  --tooltip-bg: #1a1a1a;
+  --tooltip-border: #333;
+  --table-row-hover: #1a1a1a;
+  --table-border: #1a1a1a;
+  --grid-stroke: #252525;
+}
+
+/* Light mode */
+.light {
+  --background: #f8f9fa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-border: #e2e5e9;
+  --card-hover: #f3f4f6;
+  --muted: #6b7280;
+  --nav-bg: #ffffff;
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #e2e5e9;
+  --table-row-hover: #f9fafb;
+  --table-border: #f0f1f3;
+  --grid-stroke: #e5e7eb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Logo switching */
+.dark .dark-logo { display: block; }
+.dark .light-logo { display: none; }
+.light .dark-logo { display: none; }
+.light .light-logo { display: block; }

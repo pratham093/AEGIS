@@ -2,6 +2,9 @@
 
 from aegis.backtests.core import *
 
+# crypto needs very different risk params than equities
+# higher vol target because btc is structurally volatile
+# tighter crisis cap + zero smoothing so we bail instantly on regime flip
 CONFIG = AssetConfig(
     name="BTC", close_col="btc_usd",
     regime_type="hmm", regime_k=2,
@@ -15,8 +18,10 @@ CONFIG = AssetConfig(
 
 
 def run_btc_backtest():
+    """run the full btc backtest pipeline and return result dict."""
     print("\n  BTC backtest starting...")
 
+    # load price universe, asset-specific features, and cross-asset signals
     universe = load_universe()
     features = load_features(CONFIG.close_col)
     xf = build_cross_asset_features(universe)
@@ -26,16 +31,19 @@ def run_btc_backtest():
     )
     print(f"  Data: {df_sig.shape[0]} rows, {df_sig.shape[1]} features")
 
+    # generate binary long/flat signal from the base rule
     signals = base_rule(df_sig, universe, "BTC")
     long_pct = signals.mean() * 100
     print(f"  Base rule: LONG {long_pct:.1f}% of days ({int(signals.sum())} / {len(signals)})")
 
+    # fit hmm on regime features; hmm handles crypto's abrupt state changes well
     r_input = [c for c in regime_in_sig if c in df_sig.columns]
     rdata = df_sig[r_input].dropna()
     sc = StandardScaler()
     X_regime = sc.fit_transform(rdata)
     labels, probs, _ = fit_regime(X_regime, CONFIG.regime_type, CONFIG.regime_k)
 
+    # orient so higher label = higher vol (crisis), keeps interpretation consistent
     labels, probs = orient_regime_labels(
         labels, probs, df_sig.loc[rdata.index, "volatility_21d"].values, CONFIG.regime_k
     )
@@ -43,12 +51,14 @@ def run_btc_backtest():
     regime_series = pd.Series(labels, index=rdata.index)
     conf_series = pd.Series(np.max(probs, axis=1), index=rdata.index)
 
+    # walk through each day and let the risk engine size the position
     results = []
     for date in df_sig.index:
         sig = float(signals.get(date, 0))
         rl = int(regime_series.get(date, 1))
         rc = float(conf_series.get(date, 0.5))
         rv = float(df_sig.loc[date, "realized_vol_21d"])
+        # trailing 1y window gives the risk engine enough history for vol scaling
         ret_hist = asset_returns.loc[:date].tail(252)
 
         risk = risk_engine_v2(sig, sig, rl, rc, rv, ret_hist, CONFIG)

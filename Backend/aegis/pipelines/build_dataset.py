@@ -1,4 +1,4 @@
-"""Fetch market + macro data and build the unified universe dataset."""
+"""fetch market + macro data and build the unified universe dataset."""
 
 import pandas as pd
 import numpy as np
@@ -11,7 +11,8 @@ import time
 
 warnings.filterwarnings("ignore")
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # aegis/pipelines/ → Backend/
+# resolve paths relative to the Backend/ root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -20,11 +21,13 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 START_DATE = "2005-01-01"
 END_DATE = datetime.today().strftime("%Y-%m-%d")
 
+# instruments we actually predict on vs ones used only as context signals
 TARGET_INSTRUMENTS = ["SPY", "QQQ", "IWM", "BTC-USD"]
 CONTEXT_INSTRUMENTS = ["^VIX", "XLF", "XLK", "XLE", "XLV", "GLD", "USO"]
 
 ALL_TICKERS = TARGET_INSTRUMENTS + CONTEXT_INSTRUMENTS
 
+# fred series ids mapped to readable column names
 FRED_SERIES = {
     "DFF":      "fed_funds_rate",
     "DGS10":    "treasury_10y",
@@ -36,6 +39,7 @@ FRED_SERIES = {
 
 
 def fetch_ohlcv() -> dict[str, pd.DataFrame]:
+    """download daily ohlcv bars for all tickers from yahoo finance."""
     print("\n  Fetching OHLCV from Yahoo Finance...")
 
     data = {}
@@ -54,12 +58,14 @@ def fetch_ohlcv() -> dict[str, pd.DataFrame]:
                 print("EMPTY — skipped")
                 continue
 
+            # yfinance sometimes returns multiindex columns for single tickers
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
             df.columns = [c.lower().replace(" ", "_") for c in df.columns]
             df.index.name = "date"
 
+            # sanitize ticker for safe filenames (^VIX -> vix, BTC-USD -> btc_usd)
             safe_name = ticker.replace("^", "").replace("-", "_").lower()
             path = RAW_DIR / f"ohlcv_{safe_name}.parquet"
             df.to_parquet(path, engine="pyarrow")
@@ -73,6 +79,7 @@ def fetch_ohlcv() -> dict[str, pd.DataFrame]:
 
 
 def fetch_fred() -> pd.DataFrame:
+    """pull macro indicators from fred and join them into one dataframe."""
     print("\n  Fetching macro data from FRED...")
 
     frames = []
@@ -85,20 +92,24 @@ def fetch_fred() -> pd.DataFrame:
             print(f"OK — {len(df)} rows")
         except Exception as e:
             print(f"FAILED — {e}")
+        # be polite to the fred api
         time.sleep(0.3)
 
     if not frames:
         print("  WARNING: No FRED data fetched!")
         return pd.DataFrame()
 
+    # iteratively join so we keep the full date range from all series
     macro = frames[0]
     for f in frames[1:]:
         macro = macro.join(f, how="outer")
 
     macro.index.name = "date"
 
+    # forward fill gaps since macro data publishes at different frequencies
     macro = macro.sort_index().ffill()
 
+    # yield curve inversion is a classic recession signal
     if "treasury_10y" in macro.columns and "treasury_2y" in macro.columns:
         macro["yield_spread_10y_2y"] = macro["treasury_10y"] - macro["treasury_2y"]
         print(f"  Derived: yield_spread_10y_2y")
@@ -111,6 +122,7 @@ def fetch_fred() -> pd.DataFrame:
 
 
 def fetch_fama_french() -> pd.DataFrame:
+    """grab daily fama french 3 factor data for risk decomposition."""
     print("\n  Fetching Fama-French factors...")
 
     try:
@@ -122,6 +134,7 @@ def fetch_fama_french() -> pd.DataFrame:
         df.index = pd.to_datetime(df.index)
         df.index.name = "date"
 
+        # source data is in percentage points, convert to decimals
         df = df / 100.0
 
         path = RAW_DIR / "fama_french.parquet"
@@ -134,6 +147,7 @@ def fetch_fama_french() -> pd.DataFrame:
 
 
 def build_close_matrix(ohlcv_data: dict) -> pd.DataFrame:
+    """extract just the close prices from each ticker into a wide dataframe."""
     closes = {}
     for ticker, df in ohlcv_data.items():
         safe_name = ticker.replace("^", "").replace("-", "_").lower()
@@ -150,13 +164,14 @@ def build_universe(
     macro: pd.DataFrame,
     ff: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Merge all sources into one daily dataset with a cleaning log."""
+    """merge all sources into one daily dataset with a cleaning log."""
     print("\n  Building universe dataset...")
 
     cleaning_log = []
 
     universe = build_close_matrix(ohlcv_data)
 
+    # add ohlv columns (not just close) for target instruments since models need them
     for ticker in TARGET_INSTRUMENTS:
         if ticker not in ohlcv_data:
             continue
@@ -166,6 +181,7 @@ def build_universe(
             if col in df.columns:
                 universe[f"{safe}_{col}"] = df[col]
 
+    # left join keeps the market calendar as the spine
     if not macro.empty:
         universe = universe.join(macro, how="left")
     if not ff.empty:
@@ -174,6 +190,7 @@ def build_universe(
 
     universe = universe.sort_index()
 
+    # snapshot raw state before any cleaning for the audit trail
     raw_shape = universe.shape
     raw_missing = universe.isnull().sum().to_dict()
     raw_total_missing = universe.isnull().sum().sum()
@@ -194,6 +211,7 @@ def build_universe(
     })
     print(f"\n  Step 0 — Raw merge: {raw_shape}, {raw_total_missing} missing values ({raw_missing_pct:.2f}%)")
 
+    # step 1: dedup dates, keeping the latest value if yahoo gives us duplicates
     before_rows = len(universe)
     universe = universe[~universe.index.duplicated(keep="last")]
     after_rows = len(universe)
@@ -209,6 +227,7 @@ def build_universe(
     })
     print(f"  Step 1 — Duplicates: {dupes_removed} removed ({before_rows} → {after_rows})")
 
+    # step 2: btc trades 24/7 but equities don't, so calendars don't fully overlap
     if "btc_usd" in universe.columns and "spy" in universe.columns:
         btc_only_dates = universe["btc_usd"].notna() & universe["spy"].isna()
         spy_only_dates = universe["spy"].notna() & universe["btc_usd"].isna()
@@ -230,8 +249,10 @@ def build_universe(
     })
     print(f"  Step 2 — Calendar mismatch: {n_btc_only} BTC-only dates, {n_spy_only} SPY-only dates")
 
+    # step 3: fill short gaps causally (no backfill to avoid future leakage)
     missing_before_ffill = universe.isnull().sum().sum()
 
+    # limit=5 prevents filling across long structural gaps like btc pre-2014
     universe = universe.ffill(limit=5)
 
     missing_after_ffill = universe.isnull().sum().sum()
@@ -251,6 +272,8 @@ def build_universe(
     })
     print(f"  Step 3 — Forward-fill: {filled_count} values filled ({missing_before_ffill} → {missing_after_ffill} missing)")
 
+    # step 4: drop rows where any target is still missing after ffill
+    # this effectively trims the dataset to the overlapping period
     before_rows = len(universe)
     target_cols = [t.replace("^", "").replace("-", "_").lower() for t in TARGET_INSTRUMENTS]
     available_targets = [c for c in target_cols if c in universe.columns]
@@ -274,6 +297,7 @@ def build_universe(
     })
     print(f"  Step 4 — Drop incomplete rows: {dropped} dropped ({before_rows} → {after_rows})")
 
+    # step 5: flag extreme moves but keep them, real crashes matter for regime detection
     outlier_flags = pd.DataFrame(index=universe.index)
     outlier_counts = {}
 
@@ -319,11 +343,13 @@ def build_universe(
     path = PROCESSED_DIR / "universe.parquet"
     universe.to_parquet(path, engine="pyarrow")
 
+    # persist the full cleaning audit trail as json
     import json
     log_path = PROCESSED_DIR / "cleaning_log.json"
     with open(log_path, "w") as f:
         json.dump(cleaning_log, f, indent=2, default=str)
 
+    # per column missing value report so we can spot problematic series
     missing_report = pd.DataFrame({
         "column": universe.columns,
         "missing_before_cleaning": [raw_missing.get(c, 0) for c in universe.columns],
@@ -340,6 +366,7 @@ def build_universe(
 
 
 def main():
+    """run the full data pipeline end to end."""
     print(f"\n  Data pipeline: {START_DATE} to {END_DATE}")
 
     ohlcv_data = fetch_ohlcv()

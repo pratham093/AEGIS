@@ -3,6 +3,7 @@
 import subprocess
 import sys
 
+# each step is a subprocess so failures are isolated and easy to rerun
 steps = [
     ("1. Fetching Data", [sys.executable, "-m", "aegis.pipelines.build_dataset"]),
     ("2. Engineering Features", [sys.executable, "-m", "aegis.pipelines.feature_engineering"]),
@@ -15,6 +16,8 @@ if __name__ == "__main__":
         print(f"  {label}")
         print(f"{'='*60}")
         result = subprocess.run(cmd, cwd=".")
+
+        # bail early so you know exactly which step broke
         if result.returncode != 0:
             print(f"\n  ERROR in step: {label}")
             print("  Fix the issue and re-run.")

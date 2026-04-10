@@ -1,4 +1,4 @@
-"""Search endpoint — query assets and get predictions."""
+"""Search endpoint — accepts natural language queries about assets and returns predictions."""
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -8,6 +8,7 @@ from api.services.data_loader import (
 
 router = APIRouter(tags=["search"])
 
+# maps common query terms to their asset symbols
 ALIAS_MAP = {
     "spy": "SPY", "s&p": "SPY", "s&p 500": "SPY", "sp500": "SPY",
     "qqq": "QQQ", "nasdaq": "QQQ", "nasdaq 100": "QQQ",
@@ -44,6 +45,7 @@ class SearchResponse(BaseModel):
 
 
 def _resolve_assets(query: str) -> list[str]:
+    """Match a user query string to asset symbols using the alias map."""
     q = query.lower().strip()
 
     for alias, symbol in ALIAS_MAP.items():
@@ -52,10 +54,12 @@ def _resolve_assets(query: str) -> list[str]:
                 return ["SPY", "QQQ", "IWM", "BTC"]
             return [symbol]
 
+    # no match found, return all assets
     return ["SPY", "QQQ", "IWM", "BTC"]
 
 
 def _risk_level(score: int) -> str:
+    """Convert numeric risk score to a human-readable label."""
     if score <= 30:
         return "LOW"
     elif score <= 60:
@@ -65,6 +69,7 @@ def _risk_level(score: int) -> str:
 
 
 def _build_prediction(asset: str, sig: dict, metrics: dict | None) -> AssetPrediction:
+    """Assemble a structured prediction response from raw signal data."""
     flags = sig.get("risk_flags", "")
     flag_list = [f.strip() for f in flags.split(",") if f.strip()] if isinstance(flags, str) else flags
 
@@ -91,6 +96,7 @@ def _build_prediction(asset: str, sig: dict, metrics: dict | None) -> AssetPredi
 
 
 def _generate_summary(predictions: list[AssetPrediction]) -> str:
+    """Generate a one-line summary of the signal state across matched assets."""
     long = [p.asset for p in predictions if p.signal == "LONG"]
     flat = [p.asset for p in predictions if p.signal != "LONG"]
 
@@ -106,7 +112,7 @@ def _generate_summary(predictions: list[AssetPrediction]) -> str:
 
 @router.post("/search", response_model=SearchResponse)
 def search(req: SearchRequest):
-    """Query an asset and get the current prediction + risk assessment."""
+    """Accept a query about any tracked asset and return the current prediction."""
     matched = _resolve_assets(req.query)
 
     # prefer live signals, fall back to backtest snapshot

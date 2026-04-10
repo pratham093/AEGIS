@@ -14,11 +14,13 @@ from aegis.backtests.btc import run_btc_backtest
 
 
 def plot_combined_summary(all_results):
+    """generate equity curve and summary bar charts across all assets."""
     colors = {"SPY": "#2ecc71", "QQQ": "#3498db", "IWM": "#9b59b6", "BTC": "#f39c12"}
     assets = list(all_results.keys())
     x = range(len(assets))
     c = [colors.get(a, "#333") for a in assets]
 
+    # top panel: per-asset equity curves comparing aegis vs buy & hold
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     axes = axes.flatten()
     for idx, (asset, res) in enumerate(all_results.items()):
@@ -38,8 +40,10 @@ def plot_combined_summary(all_results):
     plt.savefig(REPORT_FIG / "v21_equity_curves.png", dpi=150, bbox_inches="tight")
     plt.close()
 
+    # bottom panel: side-by-side bars for sharpe, drawdown, and exposure
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
 
+    # sharpe comparison
     aegis_sharpe = [all_results[a]["metrics"]["sized_sharpe"] for a in assets]
     bh_sharpe = [all_results[a]["metrics"]["bh_sharpe"] for a in assets]
     axes[0].bar([i - 0.15 for i in x], aegis_sharpe, 0.3, color=c, label="AEGIS V3")
@@ -49,6 +53,7 @@ def plot_combined_summary(all_results):
     axes[0].legend(); axes[0].axhline(y=0, color="black", linewidth=0.5)
     axes[0].grid(True, alpha=0.3)
 
+    # max drawdown comparison (lower is better)
     aegis_dd = [all_results[a]["metrics"]["max_dd_sized_pct"] for a in assets]
     bh_dd = [all_results[a]["metrics"]["max_dd_bh_pct"] for a in assets]
     axes[1].bar([i - 0.15 for i in x], aegis_dd, 0.3, color=c, label="AEGIS V3")
@@ -57,6 +62,7 @@ def plot_combined_summary(all_results):
     axes[1].set_title("Max Drawdown (%)", fontweight="bold")
     axes[1].legend(); axes[1].grid(True, alpha=0.3)
 
+    # average exposure shows how much capital the system deploys
     exp = [all_results[a]["metrics"]["avg_exposure_pct"] for a in assets]
     axes[2].bar(x, exp, color=c)
     axes[2].set_xticks(list(x)); axes[2].set_xticklabels(assets)
@@ -72,9 +78,11 @@ def plot_combined_summary(all_results):
 
 
 def save_combined_outputs(all_results):
+    """write csv + json summaries so we can compare runs without replotting."""
     rows = []
     for asset, res in all_results.items():
         m = res["metrics"].copy()
+        # flag_counts is nested and doesn't serialize nicely to csv
         m.pop("flag_counts", None)
         rows.append(m)
 
@@ -88,8 +96,10 @@ def save_combined_outputs(all_results):
 
 
 def main():
+    """orchestrate all four asset backtests and produce combined outputs."""
     print("\n  Running all backtests...")
 
+    # run sequentially because each backtest fits its own regime model
     all_results = {}
 
     all_results["SPY"] = run_spy_backtest()

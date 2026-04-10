@@ -20,6 +20,7 @@ from sklearn.metrics import (
     silhouette_score
 )
 
+# optional heavy deps, degrade gracefully if missing
 try:
     import lightgbm as lgb
     HAS_LGB = True
@@ -41,6 +42,7 @@ except ImportError:
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
+# resolve project root so all paths work regardless of cwd
 BASE = Path(__file__).resolve().parent.parent.parent  # aegis/backtests/ → Backend/
 DATA_RAW = BASE / "data" / "raw"
 DATA_PROC = BASE / "data" / "processed"
@@ -49,18 +51,21 @@ REPORT_FIG = BASE / "reports" / "figures"
 REPORT_MET = BASE / "reports" / "metrics"
 MODEL_DIR = BASE / "models"
 
+# ensure output dirs exist on import so callers don't have to
 for d in [REPORT_FIG, REPORT_MET, MODEL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
 class AssetConfig:
+    """Per-asset knobs controlling regime detection, signal model, and risk."""
     name: str
     close_col: str
     regime_type: str            # "gmm" or "hmm"
     regime_k: int = 2
     signal_model: str = "lightgbm"
     horizons: List[int] = field(default_factory=lambda: [5, 10, 21])
+    # vol-adjusted forward return must exceed this to count as a buy signal
     vol_thresh: float = 0.3
     consensus_mode: str = "unanimous"
     top_n_features: int = 20
@@ -69,9 +74,12 @@ class AssetConfig:
         "volatility_21d", "volatility_63d", "log_ret_21d", "rsi_14",
         "dist_sma_50", "dist_sma_200", "atr_norm", "volume_ratio_20d"
     ])
+    # equities get vix as an extra regime input; crypto doesn't
     equity_regime_extras: List[str] = field(default_factory=lambda: ["vix"])
+    # walk-forward params: ~2 years train minimum, ~6 month steps
     min_train_days: int = 504
     step_days: int = 126
+    # risk engine params
     risk_target_vol: float = 0.15
     risk_max_exposure: float = 1.0
     risk_regime_crisis_cap: float = 0.5
@@ -79,12 +87,14 @@ class AssetConfig:
 
 
 def load_universe() -> pd.DataFrame:
+    """Load the multi-asset price universe from parquet."""
     universe = pd.read_parquet(DATA_PROC / "universe.parquet")
     print(f"Universe: {universe.shape}, {universe.index[0]} → {universe.index[-1]}")
     return universe
 
 
 def load_features(close_col: str) -> pd.DataFrame:
+    """Load precomputed features for a single asset."""
     path = DATA_FEAT / f"features_{close_col}.parquet"
     df = pd.read_parquet(path).drop(columns=["instrument"], errors="ignore")
     print(f"Features ({close_col}): {df.shape}")
@@ -92,12 +102,15 @@ def load_features(close_col: str) -> pd.DataFrame:
 
 
 def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
+    """Derive cross-asset momentum, dispersion, correlation, and macro signals."""
     xf = pd.DataFrame(index=universe.index)
 
     def ratio_mom(a, b, periods=[5, 10]):
+        """Compute log-ratio momentum between two price series."""
         lr = np.log(a / b)
         return {p: lr.diff(p) for p in periods}
 
+    # relative strength pairs (e.g. risk-on vs risk-off)
     pairs = [
         ("spy_gld", "spy", "gld"), ("iwm_spy", "iwm", "spy"),
         ("qqq_spy", "qqq", "spy"), ("btc_spy", "btc_usd", "spy"),
@@ -107,15 +120,18 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             for p, s in ratio_mom(universe[a], universe[b]).items():
                 xf[f"{pair}_mom_{p}d"] = s
 
+    # sector dispersion captures breadth of rally/selloff across sectors
     sec = [c for c in ["xlf", "xlk", "xle", "xlv"] if c in universe.columns]
     if len(sec) >= 3:
         sr = pd.DataFrame({s: np.log(universe[s] / universe[s].shift(1)) for s in sec})
         xf["sector_disp"] = sr.std(axis=1)
         xf["sector_disp_21d"] = xf["sector_disp"].rolling(21, min_periods=10).mean()
         xf["sector_disp_chg_5d"] = xf["sector_disp_21d"].diff(5)
+        # fraction of sectors with positive daily returns
         xf["sector_breadth"] = (sr > 0).mean(axis=1)
         xf["sector_breadth_5d"] = xf["sector_breadth"].rolling(5, min_periods=3).mean()
 
+    # rolling correlations detect regime shifts (e.g. btc decorrelating from equities)
     spy_ret = np.log(universe["spy"] / universe["spy"].shift(1))
     for tag, col in [("btc", "btc_usd"), ("gld", "gld")]:
         if col in universe.columns:
@@ -123,6 +139,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             xf[f"spy_{tag}_corr_21d"] = spy_ret.rolling(21, min_periods=15).corr(ar)
             xf[f"spy_{tag}_corr_chg_5d"] = xf[f"spy_{tag}_corr_21d"].diff(5)
 
+    # yield curve features: spread changes signal macro turning points
     if "yield_spread_10y_2y" in universe.columns:
         ys = universe["yield_spread_10y_2y"]
         xf["yield_mom_5d"] = ys.diff(5)
@@ -132,6 +149,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             / ys.rolling(63, min_periods=30).std()
         )
 
+    # vix features: fear gauge relative to its own recent history
     if "vix" in universe.columns:
         v = universe["vix"]
         xf["vix_sma_ratio"] = v / v.rolling(21, min_periods=15).mean()
@@ -144,6 +162,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
 
 
 def fit_regime(X, regime_type, k=2, seed=42):
+    """Fit a GMM or HMM regime model and return labels, probabilities, and the model."""
     if regime_type == "gmm":
         model = GaussianMixture(k, covariance_type="full", n_init=10, random_state=seed)
         labels = model.fit_predict(X)
@@ -154,6 +173,7 @@ def fit_regime(X, regime_type, k=2, seed=42):
         labels = model.predict(X)
         probs = model.predict_proba(X)
     else:
+        # fallback to gmm if hmm unavailable
         model = GaussianMixture(k, covariance_type="full", n_init=10, random_state=seed)
         labels = model.fit_predict(X)
         probs = model.predict_proba(X)
@@ -161,12 +181,13 @@ def fit_regime(X, regime_type, k=2, seed=42):
 
 
 def orient_regime_labels(labels, probs, vol_values, k=2):
-    # high-vol regime = 0 (crisis), low-vol = 1
+    """Ensure regime 0 = high-vol (crisis) and regime 1 = low-vol (calm)."""
     vol_by_regime = {}
     for r in range(k):
         mask = labels == r
         if mask.sum() > 0:
             vol_by_regime[r] = vol_values[mask].mean()
+    # swap labels if the model assigned them backwards
     if len(vol_by_regime) == 2:
         high_vol_label = max(vol_by_regime, key=vol_by_regime.get)
         if high_vol_label != 0:
@@ -176,15 +197,22 @@ def orient_regime_labels(labels, probs, vol_values, k=2):
 
 
 def add_regime_features(X_df, labels, probs, k):
+    """Enrich feature dataframe with regime-derived columns for the signal model."""
     out = X_df.copy()
     out["regime_label"] = labels
     for i in range(k):
         out[f"regime_prob_{i}"] = probs[:, i]
     out["regime_conf"] = np.max(probs, axis=1)
+
+    # track how long current regime has lasted (regime persistence is predictive)
     changes = (pd.Series(labels, index=out.index) != pd.Series(labels, index=out.index).shift(1))
     groups = changes.cumsum()
     out["regime_dur"] = (groups.groupby(groups).cumcount() + 1).values
+    # flag if any regime switch happened in the last 5 days
     out["regime_switch_5d"] = changes.rolling(5, min_periods=1).max().values
+
+    # vol surprise: current vol vs expanding mean within that regime
+    # helps catch vol spikes that are unusual even for the current regime
     if "volatility_21d" in out.columns:
         vol = out["volatility_21d"].values
         vs = np.ones(len(vol))
@@ -199,6 +227,7 @@ def add_regime_features(X_df, labels, probs, k):
 
 
 def make_signal_model(model_type):
+    """Instantiate a classifier for directional signal prediction."""
     if model_type == "lightgbm" and HAS_LGB:
         return lgb.LGBMClassifier(
             n_estimators=150, max_depth=5, learning_rate=0.03,
@@ -216,11 +245,14 @@ def make_signal_model(model_type):
     elif model_type == "logistic":
         return LogisticRegression(max_iter=1000, C=0.3, random_state=42)
     else:
+        # safe default when requested model isn't available
         return LogisticRegression(max_iter=1000, C=0.3, random_state=42)
 
 
 def select_features(X_train, y_train, feature_names, top_n=20):
+    """Pick the most informative features using tree importance or correlation fallback."""
     if HAS_LGB and len(feature_names) > top_n:
+        # quick lgbm fit just to rank feature importances
         selector = lgb.LGBMClassifier(
             n_estimators=50, max_depth=4, learning_rate=0.05,
             random_state=42, verbose=-1,
@@ -229,6 +261,7 @@ def select_features(X_train, y_train, feature_names, top_n=20):
         top_idx = np.argsort(selector.feature_importances_)[-top_n:]
         return sorted(top_idx.tolist())
     elif len(feature_names) > top_n:
+        # no lgbm available, fall back to univariate correlation ranking
         corrs = np.array([
             abs(np.corrcoef(X_train[:, i], y_train)[0, 1])
             if np.std(X_train[:, i]) > 1e-10 else 0
@@ -240,9 +273,11 @@ def select_features(X_train, y_train, feature_names, top_n=20):
 
 
 def build_targets(close, realized_vol, horizons, vol_thresh):
+    """Create binary labels: 1 if vol-adjusted fwd return exceeds threshold, 0 if below negative threshold."""
     targets = {}
     for h in horizons:
         fwd = np.log(close.shift(-h) / close)
+        # scale forward return by annualized vol to normalize across regimes
         hvol = realized_vol / np.sqrt(252 / h)
         vs = fwd / hvol.replace(0, np.nan)
         target = pd.Series(np.nan, index=close.index)
@@ -253,10 +288,11 @@ def build_targets(close, realized_vol, horizons, vol_thresh):
 
 
 def base_rule(features, universe, asset_name="BTC"):
-    # trend + momentum + vol filter
+    """Simple trend + momentum + vol filter as a non-ML baseline signal."""
     signals = pd.Series(0.0, index=features.index)
     above_sma = features["dist_sma_50"] > 0 if "dist_sma_50" in features.columns else True
     rsi_ok = features["rsi_14"] > 40 if "rsi_14" in features.columns else True
+    # only go long when vol is below its historical 75th percentile
     if "volatility_21d" in features.columns:
         vol = features["volatility_21d"]
         vol_threshold = vol.rolling(252, min_periods=63).quantile(0.75)
@@ -268,17 +304,21 @@ def base_rule(features, universe, asset_name="BTC"):
 
 
 def kelly_fraction(win_rate, avg_win, avg_loss):
+    """Compute half-kelly sizing from historical win/loss stats."""
     if avg_loss == 0 or avg_win == 0:
         return 0.0
     b = avg_win / abs(avg_loss)
     kelly = (b * win_rate - (1 - win_rate)) / b
+    # half-kelly is more robust to estimation error
     return max(0.0, min(kelly * 0.5, 1.0))
 
 
 def risk_engine_v2(signal_prob, prob_rank_pct, regime_label, regime_conf,
                    realized_vol, returns_history, cfg):
+    """Convert a raw signal probability into a risk-adjusted exposure recommendation."""
     flags = []
 
+    # map signal rank to a 0-1 exposure (below median = sit out)
     if prob_rank_pct < 0.50:
         signal_exposure = 0.0
         if prob_rank_pct < 0.30:
@@ -287,13 +327,13 @@ def risk_engine_v2(signal_prob, prob_rank_pct, regime_label, regime_conf,
         signal_exposure = (prob_rank_pct - 0.50) / 0.50
         signal_exposure = min(signal_exposure, 1.0)
 
-    # vol targeting
+    # vol targeting: scale up when vol is low, scale down when high
     target_vol = cfg.risk_target_vol
     vol_scalar = np.clip(target_vol / realized_vol, 0.1, 2.0) if realized_vol > 0 else 1.0
     if realized_vol > target_vol * 2:
         flags.append("HIGH_VOL")
 
-    # regime caps
+    # cap exposure during crisis regimes or when regime confidence is shaky
     regime_cap = cfg.risk_max_exposure
     if regime_label == 0:
         regime_cap = cfg.risk_regime_crisis_cap
@@ -302,15 +342,17 @@ def risk_engine_v2(signal_prob, prob_rank_pct, regime_label, regime_conf,
         regime_cap *= 0.8
         flags.append("REGIME_UNSTABLE")
 
+    # compute tail risk metrics from realized returns
     hist = returns_history.dropna()
     if len(hist) > 60:
         var_95 = float(np.percentile(hist, 5))
         var_99 = float(np.percentile(hist, 1))
         es_95 = float(hist[hist <= var_95].mean()) if (hist <= var_95).sum() > 0 else var_95
     else:
+        # not enough history, use conservative defaults
         var_95, var_99, es_95 = -0.02, -0.04, -0.03
 
-    # drawdown guard
+    # drawdown guard: cut exposure if recent performance has been ugly
     dd_scalar = 1.0
     recent_dd = 0.0
     if len(hist) > 21:
@@ -322,16 +364,19 @@ def risk_engine_v2(signal_prob, prob_rank_pct, regime_label, regime_conf,
         elif recent_dd < -0.05:
             dd_scalar = 0.75
 
+    # kelly fraction from rolling win/loss stats
     kf = 0.5
     if len(hist) > 60:
         wins, losses = hist[hist > 0], hist[hist < 0]
         if len(wins) > 10 and len(losses) > 10:
             kf = kelly_fraction(len(wins) / len(hist), float(wins.mean()), float(losses.mean()))
 
+    # combine all scalars and enforce caps
     raw_exposure = signal_exposure * vol_scalar * dd_scalar
     capped_exposure = min(raw_exposure, regime_cap, cfg.risk_max_exposure)
     final_exposure = max(0.0, round(capped_exposure, 4))
 
+    # composite risk score (0-100) for dashboards and monitoring
     risk_score = int(min(100, max(0,
         (realized_vol / 0.30) * 30 + (1 - regime_conf) * 20
         + (1 - signal_exposure) * 30 + abs(min(0, recent_dd)) * 200
@@ -349,22 +394,27 @@ def risk_engine_v2(signal_prob, prob_rank_pct, regime_label, regime_conf,
 
 
 def generate_expanding_folds(n_rows, min_train, step):
+    """Create expanding-window walk-forward fold indices to avoid lookahead bias."""
     folds = []
     train_end = min_train
     while train_end + step <= n_rows:
         test_end = min(train_end + step, n_rows)
         folds.append((0, train_end, test_end))
         train_end += step
+    # catch any leftover rows that didn't fill a full step
     if train_end < n_rows and folds:
         folds.append((0, train_end, n_rows))
     return folds
 
 
 def prepare_asset_data(cfg, features, universe, cross_features):
+    """Align and merge asset features, cross-asset features, and universe into a clean dataframe."""
+    # intersect indices so everything lines up
     common = features.index.intersection(cross_features.index).intersection(universe.index)
     feat = features.loc[common]
     xf = cross_features.loc[common]
 
+    # these per-asset columns get merged into the cross-asset frame
     asset_state_cols = [
         "rsi_14", "dist_sma_50", "bollinger_pos", "volatility_21d",
         "volatility_10d", "log_ret_1d", "atr_norm", "volume_ratio_20d",
@@ -375,9 +425,11 @@ def prepare_asset_data(cfg, features, universe, cross_features):
         if c in feat.columns:
             df_sig[c] = feat.loc[common, c]
 
+    # realized vol used for position sizing and regime detection
     asset_ret = np.log(universe[cfg.close_col] / universe[cfg.close_col].shift(1))
     df_sig["realized_vol_21d"] = asset_ret.rolling(21, min_periods=15).std() * np.sqrt(252)
 
+    # vix/rv ratio is useful for equities but meaningless for crypto
     if cfg.name != "BTC" and "vix" in universe.columns:
         df_sig["vix_rv_ratio"] = (
             universe.loc[common, "vix"]
@@ -388,6 +440,7 @@ def prepare_asset_data(cfg, features, universe, cross_features):
     asset_close = universe.loc[df_sig.index, cfg.close_col]
     asset_returns = asset_ret.loc[df_sig.index]
 
+    # pick which columns feed the regime model
     rcols = [c for c in cfg.regime_features if c in feat.columns]
     if cfg.name != "BTC":
         rcols += [c for c in cfg.equity_regime_extras if c in universe.columns]
@@ -398,8 +451,10 @@ def prepare_asset_data(cfg, features, universe, cross_features):
 
 def compute_backtest_metrics(asset_name, cfg, risk_results, asset_returns,
                              fold_metrics=None, tx_cost_bps=5.0):
+    """Aggregate walk-forward results into portfolio-level performance metrics."""
     rdf = pd.DataFrame(risk_results).set_index("date").sort_index()
 
+    # smooth exposure changes to reduce whipsaw and turnover
     raw_exposure = rdf["recommended_exposure"].copy()
     rdf["raw_exposure"] = raw_exposure
     if cfg.exposure_ema_halflife > 0:
@@ -407,6 +462,7 @@ def compute_backtest_metrics(asset_name, cfg, risk_results, asset_returns,
             halflife=cfg.exposure_ema_halflife, min_periods=1
         ).mean()
 
+    # estimate realistic transaction costs from exposure changes
     rdf["exposure_change"] = rdf["recommended_exposure"].diff().abs().fillna(0)
     rdf["tx_cost"] = rdf["exposure_change"] * (tx_cost_bps / 10000)
     rdf["sized_ret"] = rdf["recommended_exposure"] * rdf["asset_ret"] - rdf["tx_cost"]
@@ -417,9 +473,11 @@ def compute_backtest_metrics(asset_name, cfg, risk_results, asset_returns,
     sized_sharpe = float(sr.mean() / sr.std() * np.sqrt(252)) if sr.std() > 0 else 0
     bh_sharpe = float(bh.mean() / bh.std() * np.sqrt(252)) if bh.std() > 0 else 0
 
+    # win rate only counts days where we actually had meaningful exposure
     exposed = rdf[rdf["recommended_exposure"] > 0.01]
     win_rate = float((exposed["sized_ret"] > 0).mean()) * 100 if len(exposed) > 0 else 0
 
+    # tally risk flags across all test days for diagnostics
     all_flags = []
     for flags in rdf["risk_flags"]:
         all_flags.extend(flags)
@@ -443,6 +501,7 @@ def compute_backtest_metrics(asset_name, cfg, risk_results, asset_returns,
         "test_period": f"{rdf.index[0]} → {rdf.index[-1]}",
     }
 
+    # include ML model quality metrics if available from walk-forward folds
     if fold_metrics:
         fm = pd.DataFrame(fold_metrics)
         metrics["mean_auc"] = round(float(fm["auc"].mean()), 4)
@@ -460,10 +519,12 @@ def compute_backtest_metrics(asset_name, cfg, risk_results, asset_returns,
 
 
 def plot_single_asset(asset_name, res, color="#2ecc71"):
+    """Generate and save the 4-panel chart set for one asset's backtest."""
     rdf = res["rdf"]
     m = res["metrics"]
     tag = asset_name.lower()
 
+    # panel 1: equity curve comparison
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(rdf.index, rdf["cum_sized"] * 100, color=color, linewidth=1.8, label="AEGIS V3")
     ax.plot(rdf.index, rdf["cum_bh"] * 100, color="#bbb", linewidth=1, label="Buy & Hold", alpha=0.7)
@@ -477,6 +538,7 @@ def plot_single_asset(asset_name, res, color="#2ecc71"):
     plt.savefig(REPORT_FIG / f"v21_{tag}_equity.png", dpi=150, bbox_inches="tight")
     plt.close()
 
+    # panel 2: drawdown comparison (shows risk reduction vs buy-and-hold)
     fig, ax = plt.subplots(figsize=(14, 4))
     dd_sized = (rdf["cum_sized"] - rdf["cum_sized"].cummax()) * 100
     dd_bh = (rdf["cum_bh"] - rdf["cum_bh"].cummax()) * 100
@@ -490,6 +552,7 @@ def plot_single_asset(asset_name, res, color="#2ecc71"):
     plt.savefig(REPORT_FIG / f"v21_{tag}_drawdown.png", dpi=150, bbox_inches="tight")
     plt.close()
 
+    # panel 3: exposure over time with crisis regime shading
     fig, ax = plt.subplots(figsize=(14, 4))
     ax.fill_between(rdf.index, 0, rdf["recommended_exposure"] * 100,
                     alpha=0.5, color=color, label="Exposure")
@@ -515,6 +578,7 @@ def plot_single_asset(asset_name, res, color="#2ecc71"):
     plt.savefig(REPORT_FIG / f"v21_{tag}_exposure.png", dpi=150, bbox_inches="tight")
     plt.close()
 
+    # panel 4: rolling 6-month sharpe to see consistency over time
     fig, ax = plt.subplots(figsize=(14, 4))
     rolling_sharpe = rdf["sized_ret"].rolling(126, min_periods=63).apply(
         lambda x: x.mean() / x.std() * np.sqrt(252) if x.std() > 0 else 0
@@ -537,12 +601,14 @@ def plot_single_asset(asset_name, res, color="#2ecc71"):
 
 
 def save_asset_outputs(asset_name, res):
+    """Persist metrics json, backtest parquet, and fold-level csv for one asset."""
     tag = asset_name.lower()
     m = res["metrics"]
 
     with open(REPORT_MET / f"v21_{tag}_metrics.json", "w") as f:
         json.dump(m, f, indent=2, default=str)
 
+    # flatten risk_flags list to csv-friendly string before saving
     rdf = res["rdf"].copy()
     rdf["risk_flags"] = rdf["risk_flags"].apply(lambda x: ",".join(x) if x else "")
     rdf.to_parquet(DATA_PROC / f"v21_backtest_{tag}.parquet")

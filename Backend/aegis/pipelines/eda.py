@@ -15,6 +15,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+# resolve paths relative to Backend/ so this works from any cwd
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # aegis/pipelines/ → Backend/
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 FEATURES_DIR = BASE_DIR / "data" / "features"
@@ -32,6 +33,7 @@ DPI = 150
 
 
 def load_data():
+    """loads universe parquet and per-symbol feature files."""
     universe = pd.read_parquet(PROCESSED_DIR / "universe.parquet")
 
     features = {}
@@ -44,6 +46,7 @@ def load_data():
         print(f"  Files found: {[f.name for f in all_files]}")
 
         for f in FEATURES_DIR.glob("features_*.parquet"):
+            # skip the combined file, we want individual symbols
             if f.stem == "features_all":
                 continue
         symbol = f.stem.replace("features_", "")
@@ -52,6 +55,7 @@ def load_data():
 
 
 def generate_summary_statistics(universe: pd.DataFrame):
+    """computes descriptive stats plus skewness and kurtosis for every column."""
     print("  [1/16] Summary statistics...")
     desc = universe.describe().T
     desc["missing"] = universe.isnull().sum()
@@ -64,6 +68,7 @@ def generate_summary_statistics(universe: pd.DataFrame):
 
 
 def plot_missing_values(universe: pd.DataFrame):
+    """bar chart of missing percentages plus a heatmap of the missingness pattern."""
     print("  [2/16] Missing value analysis...")
 
     missing = universe.isnull().sum()
@@ -86,6 +91,7 @@ def plot_missing_values(universe: pd.DataFrame):
         axes[0].text(0.5, 0.5, "No missing values!", ha="center", va="center", fontsize=14)
         axes[0].set_title("Missing Values by Column")
 
+    # downsample rows so the heatmap doesn't choke on large datasets
     sample = universe.isnull().iloc[::max(1, len(universe) // 500)]
     sns.heatmap(sample.T, cbar=False, cmap="YlOrRd", ax=axes[1], yticklabels=True)
     axes[1].set_title("Missing Data Pattern (sampled)")
@@ -99,6 +105,7 @@ def plot_missing_values(universe: pd.DataFrame):
 
 
 def plot_price_timeseries(universe: pd.DataFrame):
+    """normalized equity prices on top, bitcoin on bottom, both log-scaled."""
     print("  [3/16] Price time series...")
 
     instruments = ["spy", "qqq", "iwm", "btc_usd"]
@@ -106,6 +113,7 @@ def plot_price_timeseries(universe: pd.DataFrame):
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
 
+    # normalize to base=100 so different price levels are comparable
     equity = [i for i in available if i != "btc_usd"]
     for inst in equity:
         series = universe[inst].dropna()
@@ -136,6 +144,7 @@ def plot_price_timeseries(universe: pd.DataFrame):
 
 
 def plot_returns_distribution(universe: pd.DataFrame):
+    """histogram + kde vs normal overlay to visualize fat tails."""
     print("  [4/16] Returns distributions...")
 
     instruments = ["spy", "qqq", "iwm", "btc_usd"]
@@ -153,6 +162,7 @@ def plot_returns_distribution(universe: pd.DataFrame):
         ax.hist(returns, bins=100, density=True, alpha=0.6, color=colors[idx], edgecolor="none")
         returns.plot.kde(ax=ax, color=colors[idx], linewidth=2)
 
+        # overlay a normal pdf so fat tails are visually obvious
         mu, sigma = returns.mean(), returns.std()
         x = np.linspace(returns.min(), returns.max(), 200)
         ax.plot(x, stats.norm.pdf(x, mu, sigma), "k--", linewidth=1, alpha=0.7, label="Normal")
@@ -162,6 +172,7 @@ def plot_returns_distribution(universe: pd.DataFrame):
         ax.legend([f"KDE (skew={returns.skew():.2f}, kurt={returns.kurtosis():.2f})", "Normal"])
         ax.set_xlim(-0.15, 0.15)
 
+    # hide unused subplot slots
     for idx in range(len(available), 4):
         axes[idx].set_visible(False)
 
@@ -172,6 +183,7 @@ def plot_returns_distribution(universe: pd.DataFrame):
 
 
 def plot_correlation_heatmap(features: dict):
+    """correlation matrix of spy features, capped at top 30 by variance to stay readable."""
     print("  [5/16] Feature correlation heatmap...")
 
     symbol = "spy"
@@ -182,6 +194,7 @@ def plot_correlation_heatmap(features: dict):
     df = features[symbol].drop(columns=["instrument"], errors="ignore")
     numeric = df.select_dtypes(include=[np.number])
 
+    # too many features makes the heatmap unreadable, keep the most variable ones
     if numeric.shape[1] > 30:
         variances = numeric.var().sort_values(ascending=False)
         top_cols = variances.head(30).index.tolist()
@@ -190,6 +203,7 @@ def plot_correlation_heatmap(features: dict):
     corr = numeric.corr()
 
     fig, ax = plt.subplots(figsize=(14, 12))
+    # mask upper triangle to avoid redundancy
     mask = np.triu(np.ones_like(corr, dtype=bool))
     sns.heatmap(
         corr, mask=mask, cmap="RdBu_r", center=0,
@@ -208,6 +222,7 @@ def plot_correlation_heatmap(features: dict):
 
 
 def plot_cross_asset_correlation(universe: pd.DataFrame):
+    """shows how daily returns across asset classes move together."""
     print("  [6/16] Cross-asset correlation...")
 
     close_cols = ["spy", "qqq", "iwm", "btc_usd", "vix", "xlf", "xlk", "xle", "xlv", "gld", "uso"]
@@ -232,6 +247,7 @@ def plot_cross_asset_correlation(universe: pd.DataFrame):
 
 
 def plot_pca_analysis(features: dict):
+    """variance explained curve and 2d projection to check feature redundancy."""
     print("  [7/16] PCA analysis...")
 
     symbol = "spy"
@@ -257,6 +273,7 @@ def plot_pca_analysis(features: dict):
                 alpha=0.7, color="#3498db", label="Individual")
     axes[0].plot(range(1, n_components + 1), cum_var, "r-o", markersize=5, label="Cumulative")
     axes[0].axhline(y=90, color="gray", linestyle="--", alpha=0.7, label="90% threshold")
+    # find how many components you actually need for 90% coverage
     n_90 = np.argmax(cum_var >= 90) + 1
     axes[0].axvline(x=n_90, color="green", linestyle="--", alpha=0.7, label=f"{n_90} components for 90%")
     axes[0].set_xlabel("Principal Component")
@@ -264,6 +281,7 @@ def plot_pca_analysis(features: dict):
     axes[0].set_title("PCA — Variance Explained")
     axes[0].legend(fontsize=9)
 
+    # color by time index to spot regime clusters
     scatter = axes[1].scatter(X_pca[:, 0], X_pca[:, 1], c=range(len(X_pca)),
                               cmap="viridis", alpha=0.3, s=5)
     axes[1].set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)")
@@ -285,6 +303,7 @@ def plot_pca_analysis(features: dict):
 
 
 def plot_outlier_analysis(features: dict):
+    """box plots for return features and z-score flagging on spy daily returns."""
     print("  [8/16] Outlier analysis...")
 
     symbol = "spy"
@@ -293,6 +312,7 @@ def plot_outlier_analysis(features: dict):
 
     df = features[symbol].drop(columns=["instrument"], errors="ignore")
 
+    # grab up to 8 return/momentum columns for the box plot
     return_cols = [c for c in df.columns if "ret" in c or "roc" in c][:8]
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 10))
@@ -322,6 +342,7 @@ def plot_outlier_analysis(features: dict):
     plt.savefig(FIGURES_DIR / "outlier_analysis.png", dpi=DPI, bbox_inches="tight")
     plt.close()
 
+    # save counts at multiple z thresholds so you can pick the right cutoff
     if "log_ret_1d" in df.columns:
         returns = df["log_ret_1d"].dropna()
         z = np.abs(stats.zscore(returns))
@@ -335,6 +356,7 @@ def plot_outlier_analysis(features: dict):
 
 
 def plot_rolling_volatility(universe: pd.DataFrame):
+    """21-day annualized vol with key market event markers for context."""
     print("  [9/16] Rolling volatility comparison...")
 
     instruments = ["spy", "qqq", "iwm", "btc_usd"]
@@ -345,10 +367,12 @@ def plot_rolling_volatility(universe: pd.DataFrame):
 
     for inst in available:
         returns = np.log(universe[inst] / universe[inst].shift(1))
+        # annualize: multiply by sqrt(252 trading days)
         vol = returns.rolling(21).std() * np.sqrt(252) * 100
         ax.plot(vol.index, vol.values, label=inst.upper(), linewidth=1, alpha=0.8,
                 color=colors.get(inst))
 
+    # annotate major crisis dates for visual reference
     events = {
         "2008-09-15": "Lehman",
         "2020-03-16": "COVID",
@@ -376,6 +400,7 @@ def plot_rolling_volatility(universe: pd.DataFrame):
 
 
 def plot_vix_spy_relationship(universe: pd.DataFrame):
+    """scatter of vix level vs spy returns, plus dual-axis time series overlay."""
     print("  [10/16] VIX vs SPY relationship...")
 
     if "vix" not in universe.columns or "spy" not in universe.columns:
@@ -412,6 +437,7 @@ def plot_vix_spy_relationship(universe: pd.DataFrame):
 
 
 def plot_yield_curve_vs_market(universe: pd.DataFrame):
+    """dual-axis plot highlighting inverted yield curve periods (recession signal)."""
     print("  [11/16] Yield curve vs market...")
 
     if "yield_spread_10y_2y" not in universe.columns:
@@ -428,6 +454,7 @@ def plot_yield_curve_vs_market(universe: pd.DataFrame):
     ax2 = ax1.twinx()
     spread = universe["yield_spread_10y_2y"]
     ax2.plot(universe.index, spread, color="#e74c3c", linewidth=1, alpha=0.8, label="10Y-2Y Spread")
+    # shade the inverted (negative spread) regions since they historically precede recessions
     ax2.fill_between(universe.index, 0, spread, where=(spread < 0),
                      color="#e74c3c", alpha=0.2, label="Inverted Yield Curve")
     ax2.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
@@ -443,6 +470,7 @@ def plot_yield_curve_vs_market(universe: pd.DataFrame):
 
 
 def plot_feature_distributions(features: dict):
+    """grid of histograms for key engineered features with mean/median markers."""
     print("  [12/16] Feature distribution grid...")
 
     symbol = "spy"
@@ -473,6 +501,7 @@ def plot_feature_distributions(features: dict):
         ax.set_title(feat, fontsize=10)
         ax.tick_params(labelsize=8)
 
+        # red = mean, green = median so you can eyeball skew
         ax.axvline(data.mean(), color="red", linestyle="--", linewidth=1, alpha=0.7)
         ax.axvline(data.median(), color="green", linestyle="--", linewidth=1, alpha=0.7)
 
@@ -486,6 +515,7 @@ def plot_feature_distributions(features: dict):
 
 
 def plot_rsi_comparison(features: dict):
+    """overlaid rsi histograms across instruments with overbought/oversold lines."""
     print("  [13/16] RSI comparison...")
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -510,6 +540,7 @@ def plot_rsi_comparison(features: dict):
 
 
 def plot_macro_timeseries(universe: pd.DataFrame):
+    """stacked subplots for each macro indicator to spot regime shifts."""
     print("  [14/16] Macro time series...")
 
     macro_cols = {
@@ -542,6 +573,7 @@ def plot_macro_timeseries(universe: pd.DataFrame):
 
 
 def plot_sector_comparison(universe: pd.DataFrame):
+    """normalized performance chart for sector etfs on a log scale."""
     print("  [15/16] Sector ETF comparison...")
 
     sectors = ["xlf", "xlk", "xle", "xlv"]
@@ -572,6 +604,7 @@ def plot_sector_comparison(universe: pd.DataFrame):
 
 
 def generate_data_quality_report(universe: pd.DataFrame, features: dict):
+    """writes a plain-text quality summary covering shape, date range, and missingness."""
     print("  [16/20] Data quality report...")
 
     lines = []
@@ -598,10 +631,7 @@ def generate_data_quality_report(universe: pd.DataFrame, features: dict):
 
 
 def plot_cleaning_before_after(universe: pd.DataFrame):
-    """
-    Visualize the data cleaning process: before vs after.
-    Reads the raw snapshot and cleaning log saved by build_dataset.py.
-    """
+    """compares raw vs cleaned data side-by-side using saved snapshots from build_dataset."""
     print("  [17/20] Cleaning before/after visualization...")
 
     raw_path = PROCESSED_DIR / "universe_raw_snapshot.parquet"
@@ -617,6 +647,7 @@ def plot_cleaning_before_after(universe: pd.DataFrame):
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
+    # top left: raw missing values before any cleaning
     raw_missing = raw.isnull().sum().sort_values(ascending=False)
     raw_missing_pct = (raw_missing / len(raw) * 100)
     top_missing = raw_missing_pct[raw_missing_pct > 0].head(15)
@@ -632,6 +663,7 @@ def plot_cleaning_before_after(universe: pd.DataFrame):
         axes[0, 0].text(0.5, 0.5, "No missing values in raw data", ha="center", va="center")
         axes[0, 0].set_title("BEFORE Cleaning", fontweight="bold")
 
+    # top right: what's left after cleaning
     clean_missing = universe.isnull().sum().sort_values(ascending=False)
     clean_missing_pct = (clean_missing / len(universe) * 100)
     top_clean = clean_missing_pct[clean_missing_pct > 0].head(15)
@@ -647,6 +679,7 @@ def plot_cleaning_before_after(universe: pd.DataFrame):
         axes[0, 1].text(0.5, 0.5, "All missing values resolved!", ha="center", va="center", fontsize=13, color="#2ecc71")
         axes[0, 1].set_title("AFTER Cleaning", fontweight="bold")
 
+    # bottom left: row counts at each cleaning step
     if log_path.exists():
         with open(log_path) as f:
             cleaning_log = json.load(f)
@@ -669,6 +702,7 @@ def plot_cleaning_before_after(universe: pd.DataFrame):
     else:
         axes[1, 0].text(0.5, 0.5, "Cleaning log not found", ha="center", va="center")
 
+    # bottom right: per-column missing counts before vs after
     if missing_report_path.exists():
         mr = pd.read_csv(missing_report_path)
         mr = mr[mr["missing_before_cleaning"] > 0].sort_values("missing_before_cleaning", ascending=False).head(12)
@@ -694,10 +728,7 @@ def plot_cleaning_before_after(universe: pd.DataFrame):
 
 
 def plot_transformation_examples(universe: pd.DataFrame):
-    """
-    Show concrete examples of data transformations applied:
-    raw price → log returns, raw volume → normalized ratio, etc.
-    """
+    """shows raw price vs log returns vs rolling vol to illustrate feature engineering."""
     print("  [18/20] Data transformation examples...")
 
     if "spy" not in universe.columns:
@@ -708,6 +739,7 @@ def plot_transformation_examples(universe: pd.DataFrame):
 
     spy = universe["spy"].dropna()
 
+    # left column: raw data, right column: transformed version
     axes[0, 0].plot(spy.index, spy.values, linewidth=0.8, color="#3498db")
     axes[0, 0].set_title("Raw: SPY Close Price", fontweight="bold")
     axes[0, 0].set_ylabel("Price ($)")
@@ -734,6 +766,7 @@ def plot_transformation_examples(universe: pd.DataFrame):
         axes[2, 0].set_title("Raw: SPY Volume", fontweight="bold")
         axes[2, 0].set_ylabel("Volume")
 
+        # ratio to moving average normalizes volume across different market periods
         vol_ma = vol.rolling(20).mean()
         vol_ratio = (vol / vol_ma).dropna()
         axes[2, 1].plot(vol_ratio.index, vol_ratio.values, linewidth=0.4, color="#f39c12", alpha=0.8)
@@ -754,11 +787,7 @@ def plot_transformation_examples(universe: pd.DataFrame):
 
 
 def plot_target_variable_exploration(universe: pd.DataFrame):
-    """
-    Explore the target variable: forward returns.
-    The signal model predicts forward returns over horizon H.
-    This shows the distribution, autocorrelation, and regime-dependence.
-    """
+    """forward return distributions, class balance, autocorrelation, and rolling sharpe."""
     print("  [19/20] Target variable exploration...")
 
     if "spy" not in universe.columns:
@@ -767,6 +796,7 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
 
     spy = universe["spy"]
 
+    # compute forward-looking returns at multiple horizons (these are labels, not features)
     horizons = {"1d": 1, "5d": 5, "10d": 10, "21d": 21}
     fwd_returns = {}
     for label, h in horizons.items():
@@ -774,6 +804,7 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
+    # top left: overlaid histograms for each horizon
     ax = axes[0, 0]
     for label, ret in fwd_returns.items():
         ret.dropna().hist(bins=80, density=True, alpha=0.4, ax=ax, label=label)
@@ -783,6 +814,7 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
     ax.legend()
     ax.axvline(0, color="black", linestyle="--", alpha=0.5)
 
+    # top right: up/down class balance (matters for classification framing)
     ax = axes[0, 1]
     class_balance = {}
     for label, ret in fwd_returns.items():
@@ -803,13 +835,14 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
     ax.legend()
     ax.axhline(50, color="gray", linestyle="--", alpha=0.5)
 
+    # bottom left: autocorrelation to check if returns are predictable
     ax = axes[1, 0]
     ret_1d = np.log(spy / spy.shift(1)).dropna()
     max_lags = 30
     autocorrs = [ret_1d.autocorr(lag=i) for i in range(1, max_lags + 1)]
     ax.bar(range(1, max_lags + 1), autocorrs, color="#3498db", alpha=0.7)
     ax.axhline(0, color="gray", linestyle="--")
-    # Approximate 95% confidence band
+    # approximate 95% confidence band
     n = len(ret_1d)
     ax.axhline(1.96 / np.sqrt(n), color="red", linestyle=":", alpha=0.7, label="95% CI")
     ax.axhline(-1.96 / np.sqrt(n), color="red", linestyle=":", alpha=0.7)
@@ -818,6 +851,7 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
     ax.set_title("Return Autocorrelation (SPY) — Predictability Check")
     ax.legend()
 
+    # bottom right: rolling sharpe as a quick regime indicator
     ax = axes[1, 1]
     rolling_mean = ret_1d.rolling(63).mean() * 252
     rolling_std = ret_1d.rolling(63).std() * np.sqrt(252)
@@ -855,10 +889,7 @@ def plot_target_variable_exploration(universe: pd.DataFrame):
 
 
 def plot_stationarity_check(universe: pd.DataFrame):
-    """
-    Visual stationarity check: raw price (non-stationary) vs returns (stationary).
-    Includes rolling mean and variance to show the difference.
-    """
+    """rolling mean/variance comparison showing why we transform prices to returns."""
     print("  [20/20] Stationarity check...")
 
     if "spy" not in universe.columns:
@@ -870,6 +901,7 @@ def plot_stationarity_check(universe: pd.DataFrame):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
     window = 252
+    # top row: raw price has a drifting mean and growing variance (non-stationary)
     axes[0, 0].plot(spy.index, spy.values, linewidth=0.8, color="#3498db", alpha=0.8)
     axes[0, 0].plot(spy.rolling(window).mean().index, spy.rolling(window).mean().values,
                      color="red", linewidth=2, label=f"Rolling mean ({window}d)")
@@ -882,6 +914,7 @@ def plot_stationarity_check(universe: pd.DataFrame):
     axes[0, 1].set_title("SPY Price — Rolling Variance (non-constant)", fontweight="bold")
     axes[0, 1].set_ylabel("Variance")
 
+    # bottom row: log returns have a stable mean near zero and bounded variance
     axes[1, 0].plot(ret.index, ret.values, linewidth=0.3, color="#2ecc71", alpha=0.7)
     axes[1, 0].plot(ret.rolling(window).mean().index, ret.rolling(window).mean().values,
                      color="red", linewidth=2, label=f"Rolling mean ({window}d)")
@@ -905,6 +938,7 @@ def plot_stationarity_check(universe: pd.DataFrame):
 
 
 def main():
+    """runs all 20 eda steps in sequence and prints output locations."""
     print("\n🏛️  AEGIS V1 — Exploratory Data Analysis")
     print("=" * 60)
 

@@ -1,4 +1,4 @@
-"""Daily signal generator — refreshes data, runs signals, writes to disk."""
+"""daily signal generator — refreshes data, runs signals, writes to disk."""
 
 import json
 import time
@@ -22,6 +22,7 @@ log = get_logger("aegis.daily_signals")
 LIVE_SIGNALS_PATH = DATA_PROC / "live_signals.json"
 LIVE_HISTORY_PATH = DATA_PROC / "live_signal_history.json"
 
+# target allocation per asset, must sum to 1.0
 PORTFOLIO_WEIGHTS = {
     "SPY": 0.30,
     "QQQ": 0.25,
@@ -29,6 +30,9 @@ PORTFOLIO_WEIGHTS = {
     "BTC": 0.20,
 }
 
+# each asset gets its own regime model type and risk params
+# crisis cap is half the normal weight (except btc which is more aggressive at 0.3x)
+# ema halflife of 0 means no smoothing on exposure changes
 ASSET_CONFIGS = {
     "SPY": AssetConfig(
         name="SPY", close_col="spy", regime_type="gmm", regime_k=2,
@@ -60,6 +64,7 @@ ASSET_CONFIGS = {
     ),
 }
 
+# maps our internal column names to yahoo finance ticker symbols
 TICKERS = {
     "spy": "SPY", "qqq": "QQQ", "iwm": "IWM", "btc_usd": "BTC-USD",
     "vix": "^VIX", "gld": "GLD", "xlf": "XLF", "xlk": "XLK",
@@ -68,6 +73,7 @@ TICKERS = {
 
 
 def fetch_latest_prices() -> pd.DataFrame:
+    """pull new price data from yahoo and append to the existing universe parquet."""
     existing = pd.read_parquet(DATA_PROC / "universe.parquet")
     last_date = existing.index[-1]
     log.info("Universe loaded", extra={"rows": existing.shape[0]})
@@ -76,6 +82,7 @@ def fetch_latest_prices() -> pd.DataFrame:
     log.info("Fetching latest prices from Yahoo Finance")
     print("  Fetching latest prices from Yahoo Finance...")
     start = (last_date + timedelta(days=1)).strftime("%Y-%m-%d")
+    # +1 day on end because yfinance uses exclusive end dates
     end = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 
     new_data = {}
@@ -84,10 +91,12 @@ def fetch_latest_prices() -> pd.DataFrame:
             df = yf.download(ticker, start=start, end=end, progress=False)
             if len(df) > 0:
                 close = df["Close"]
+                # yfinance sometimes returns multi-level columns for single tickers
                 if isinstance(close, pd.DataFrame):
-                    close = close.iloc[:, 0]  # flatten multi-level columns
+                    close = close.iloc[:, 0]
                 close.index = close.index.tz_localize(None)
                 new_data[col_name] = close
+                # only grab ohlcv extras for assets we actually trade
                 if col_name in ["spy", "qqq", "iwm", "btc_usd"]:
                     for field, label in [("High", "high"), ("Low", "low"), ("Volume", "volume")]:
                         s = df[field]
@@ -106,11 +115,13 @@ def fetch_latest_prices() -> pd.DataFrame:
         new_df = pd.DataFrame(new_data)
         new_rows = new_df[~new_df.index.isin(existing.index)]
         if len(new_rows) > 0:
+            # carry forward columns that weren't in the new fetch (e.g. fama french factors)
             for col in existing.columns:
                 if col not in new_rows.columns:
                     last_val = existing[col].iloc[-1]
                     new_rows[col] = last_val
             universe = pd.concat([existing, new_rows]).sort_index()
+            # limit ffill to 5 days so stale data doesn't propagate forever
             universe = universe.ffill(limit=5)
             print(f"  Added {len(new_rows)} new rows")
         else:
@@ -120,7 +131,7 @@ def fetch_latest_prices() -> pd.DataFrame:
         universe = existing
         print(f"  No new data fetched")
 
-    # drop non-trading days (identical price+volume rows)
+    # weekends/holidays sometimes sneak in as duplicate rows from ffill
     spy_dup = (universe["spy"] == universe["spy"].shift(1))
     if "spy_volume" in universe.columns:
         spy_dup = spy_dup & (universe["spy_volume"] == universe["spy_volume"].shift(1))
@@ -129,6 +140,7 @@ def fetch_latest_prices() -> pd.DataFrame:
         print(f"  Dropping {non_trading.sum()} non-trading days")
         universe = universe[~non_trading]
 
+    # fama french factors update monthly so they need aggressive forward fill
     lag_cols = [c for c in universe.columns if c.startswith("ff_")]
     for c in lag_cols:
         universe[c] = universe[c].ffill()
@@ -142,14 +154,17 @@ def fetch_latest_prices() -> pd.DataFrame:
 
 def generate_signal_for_asset(asset_name: str, cfg: AssetConfig,
                                universe: pd.DataFrame) -> dict:
+    """run the full signal pipeline for one asset and return a summary dict."""
     col = cfg.close_col
 
     features = engineer_features_for_instrument(universe, col)
     xf = build_cross_asset_features(universe)
 
+    # align all dataframes to the same date index
     common = features.index.intersection(xf.index).intersection(universe.index)
     df_sig = xf.loc[common].copy()
 
+    # pull in per-asset technical indicators for the signal model
     asset_state_cols = [
         "rsi_14", "dist_sma_50", "bollinger_pos", "volatility_21d",
         "volatility_10d", "log_ret_1d", "atr_norm", "volume_ratio_20d",
@@ -158,6 +173,7 @@ def generate_signal_for_asset(asset_name: str, cfg: AssetConfig,
         if c in features.columns:
             df_sig[c] = features.loc[common, c]
 
+    # annualized realized vol for risk sizing
     asset_ret = np.log(universe[col] / universe[col].shift(1))
     df_sig["realized_vol_21d"] = asset_ret.rolling(21, min_periods=15).std() * np.sqrt(252)
     df_sig = df_sig.dropna()
@@ -167,14 +183,17 @@ def generate_signal_for_asset(asset_name: str, cfg: AssetConfig,
     signals = base_rule(df_sig, universe, asset_name)
     today_signal = float(signals.iloc[-1])
 
+    # pick regime features, equities get extra macro columns btc doesn't
     regime_cols = [c for c in cfg.regime_features if c in df_sig.columns]
     if cfg.name != "BTC":
         regime_cols += [c for c in cfg.equity_regime_extras if c in universe.columns and c in df_sig.columns]
 
+    # fit regime model (gmm or hmm) on standardized features
     rdata = df_sig[regime_cols].dropna()
     sc = StandardScaler()
     X_regime = sc.fit_transform(rdata)
     labels, probs, _ = fit_regime(X_regime, cfg.regime_type, cfg.regime_k)
+    # make sure label 0 = crisis (high vol) and 1 = normal (low vol)
     labels, probs = orient_regime_labels(
         labels, probs, df_sig.loc[rdata.index, "volatility_21d"].values, cfg.regime_k
     )
@@ -184,6 +203,7 @@ def generate_signal_for_asset(asset_name: str, cfg: AssetConfig,
 
     today_date = df_sig.index[-1]
     rv = float(df_sig.iloc[-1]["realized_vol_21d"])
+    # use last year of returns for var/kelly calculations
     ret_hist = asset_returns.tail(252)
 
     risk = risk_engine_v2(
@@ -220,6 +240,7 @@ def generate_signal_for_asset(asset_name: str, cfg: AssetConfig,
 
 
 def main():
+    """entry point for the daily signal job."""
     t0 = time.time()
     log.info("Daily signal generation started")
     print(f"\n  Daily signals — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -254,6 +275,7 @@ def main():
         json.dump(output, f, indent=2, default=str)
     print(f"\n  Saved → {LIVE_SIGNALS_PATH}")
 
+    # keep a rolling year of signal history for drift monitoring
     history = []
     if LIVE_HISTORY_PATH.exists():
         with open(LIVE_HISTORY_PATH) as f:

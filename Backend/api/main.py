@@ -18,6 +18,7 @@ VERSION = "3.1.0"
 BASE = Path(__file__).resolve().parent.parent
 DATA_PROC = BASE / "data" / "processed"
 
+# create the FastAPI app with interactive docs at /docs
 app = FastAPI(
     title="AEGIS V3 API",
     description="Multi-asset algorithmic trading signals with regime-aware risk management",
@@ -26,6 +27,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# allow the Next.js frontend + any extra origins from env
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
@@ -41,6 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# register all route groups under /api
 app.include_router(metrics.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
@@ -51,7 +54,7 @@ app.include_router(search.router, prefix="/api")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    # skip health check noise
+    """Log every request with its duration, except health checks."""
     if request.url.path == "/api/health":
         return await call_next(request)
 
@@ -68,6 +71,7 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
+    """Liveness check — used by load balancers and monitoring."""
     live_ok = (DATA_PROC / "live_signals.json").exists()
     return {
         "status": "healthy",
@@ -78,6 +82,7 @@ def health():
 
 @app.get("/api/info")
 def info():
+    """Returns build metadata, model inventory, and data freshness."""
     live_signals = DATA_PROC / "live_signals.json"
     last_signal_time = None
     market_date = None
@@ -88,6 +93,7 @@ def info():
         last_signal_time = data.get("generated_at")
         market_date = data.get("market_date")
 
+    # find which assets have backtest data available
     backtest_files = list(DATA_PROC.glob("v21_backtest_*.parquet"))
     assets_with_backtest = [f.stem.replace("v21_backtest_", "").upper() for f in backtest_files]
 
@@ -113,6 +119,7 @@ def info():
 
 
 def _universe_row_count() -> int | None:
+    """Quick row count using parquet metadata (no full load)."""
     path = DATA_PROC / "universe.parquet"
     if not path.exists():
         return None

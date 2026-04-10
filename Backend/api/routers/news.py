@@ -1,4 +1,4 @@
-"""Market news from Yahoo Finance."""
+"""Market news endpoint — fetches articles from Yahoo Finance for tracked tickers."""
 
 from fastapi import APIRouter, Query
 import yfinance as yf
@@ -7,6 +7,7 @@ import random
 
 router = APIRouter(tags=["news"])
 
+# tickers we pull news for, mapped to display names
 TICKERS = {
     "SPY": "S&P 500",
     "QQQ": "Nasdaq 100",
@@ -14,17 +15,21 @@ TICKERS = {
     "BTC-USD": "Bitcoin",
 }
 
+# simple in-memory cache to avoid hitting Yahoo on every page load
 _cache: dict = {"data": None, "ts": 0}
 CACHE_TTL = 1800  # 30 min
 
 
 def _fetch_all_articles() -> list[dict]:
+    """Fetch and deduplicate articles from Yahoo across all tracked tickers."""
     now = datetime.now().timestamp()
+
+    # return cached data if still fresh
     if _cache["data"] and (now - _cache["ts"]) < CACHE_TTL:
         return _cache["data"]
 
     by_ticker: dict[str, list[dict]] = {}
-    seen_ids: set[str] = set()
+    seen_ids: set[str] = set()  # track IDs to avoid duplicate articles
 
     for ticker, label in TICKERS.items():
         tag = ticker.replace("-USD", "")
@@ -35,10 +40,13 @@ def _fetch_all_articles() -> list[dict]:
             for item in news[:8]:
                 content = item.get("content", {})
                 article_id = content.get("id", "")
+
+                # skip duplicates (same article often appears under multiple tickers)
                 if article_id in seen_ids:
                     continue
                 seen_ids.add(article_id)
 
+                # extract thumbnail URL from nested resolution list
                 thumb = content.get("thumbnail", {})
                 thumb_url = ""
                 resolutions = thumb.get("resolutions", [])
@@ -70,10 +78,10 @@ def _fetch_all_articles() -> list[dict]:
 
 @router.get("/news")
 def get_news(shuffle: bool = Query(False)):
-    """Balanced news across tickers, optionally shuffled."""
+    """Returns a balanced mix of news across all tickers (max 12 articles)."""
     by_ticker = _fetch_all_articles()
 
-    # round-robin so each ticker gets equal representation
+    # round-robin pick so each ticker gets equal representation
     balanced: list[dict] = []
     max_per_ticker = 3
     for tag in TICKERS:
@@ -84,6 +92,7 @@ def get_news(shuffle: bool = Query(False)):
             random.shuffle(pool)
         balanced.extend(pool[:max_per_ticker])
 
+    # sort by date unless shuffle was requested
     if shuffle:
         random.shuffle(balanced)
     else:

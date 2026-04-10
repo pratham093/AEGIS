@@ -20,6 +20,7 @@ from sklearn.metrics import (
     silhouette_score
 )
 
+# optional boosting libraries, gracefully degrade to logistic if missing
 try:
     import lightgbm as lgb
     HAS_LGB = True
@@ -32,6 +33,7 @@ try:
 except ImportError:
     HAS_XGB = False
 
+# hmm gives us sequential regime detection; gmm is the fallback
 try:
     from hmmlearn.hmm import GaussianHMM
     HAS_HMM = True
@@ -41,6 +43,7 @@ except ImportError:
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
+# resolve paths relative to the Backend/ root so this works from anywhere
 BASE = Path(__file__).resolve().parent.parent.parent  # aegis/backtests/ → Backend/
 DATA_RAW = BASE / "data" / "raw"
 DATA_PROC = BASE / "data" / "processed"
@@ -53,8 +56,11 @@ for d in [REPORT_FIG, REPORT_MET, MODEL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 
+# per-asset config lets each instrument carry its own regime type,
+# signal model, risk parameters, and feature set
 @dataclass
 class AssetConfig:
+    """holds all tunable knobs for a single asset's backtest pipeline."""
     name: str
     close_col: str
     regime_type: str            # "gmm" or "hmm"
@@ -78,6 +84,7 @@ class AssetConfig:
     exposure_ema_halflife: int = 5
 
 
+# each asset gets its own architecture choices tuned to its behavior
 ASSET_CONFIGS = {
     "SPY": AssetConfig(
         name="SPY", close_col="spy", regime_type="gmm",
@@ -104,10 +111,10 @@ ASSET_CONFIGS = {
 }
 
 
-
-
+# data loading
 
 def load_data() -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    """load universe prices and per-asset feature parquets."""
     universe = pd.read_parquet(DATA_PROC / "universe.parquet")
     print(f"Universe: {universe.shape}, {universe.index[0]} → {universe.index[-1]}")
 
@@ -123,16 +130,19 @@ def load_data() -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
     return universe, features
 
 
-
-
+# cross-asset feature engineering
+# these capture relative momentum, sector dispersion, and macro signals
+# that no single-asset feature set can provide on its own
 
 def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
+    """build inter-asset ratio momentum, dispersion, and macro features."""
     xf = pd.DataFrame(index=universe.index)
 
     def ratio_mom(a, b, periods=[5, 10]):
         lr = np.log(a / b)
         return {p: lr.diff(p) for p in periods}
 
+    # relative momentum between key pairs
     pairs = [
         ("spy_gld", "spy", "gld"), ("iwm_spy", "iwm", "spy"),
         ("qqq_spy", "qqq", "spy"), ("btc_spy", "btc_usd", "spy"),
@@ -142,6 +152,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             for p, s in ratio_mom(universe[a], universe[b]).items():
                 xf[f"{pair}_mom_{p}d"] = s
 
+    # sector dispersion flags broadening risk-off moves
     sec = [c for c in ["xlf", "xlk", "xle", "xlv"] if c in universe.columns]
     if len(sec) >= 3:
         sr = pd.DataFrame({s: np.log(universe[s] / universe[s].shift(1)) for s in sec})
@@ -151,6 +162,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
         xf["sector_breadth"] = (sr > 0).mean(axis=1)
         xf["sector_breadth_5d"] = xf["sector_breadth"].rolling(5, min_periods=3).mean()
 
+    # rolling cross-asset correlations detect regime shifts
     spy_ret = np.log(universe["spy"] / universe["spy"].shift(1))
     for tag, col in [("btc", "btc_usd"), ("gld", "gld")]:
         if col in universe.columns:
@@ -158,6 +170,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             xf[f"spy_{tag}_corr_21d"] = spy_ret.rolling(21, min_periods=15).corr(ar)
             xf[f"spy_{tag}_corr_chg_5d"] = xf[f"spy_{tag}_corr_21d"].diff(5)
 
+    # yield curve momentum as a macro leading indicator
     if "yield_spread_10y_2y" in universe.columns:
         ys = universe["yield_spread_10y_2y"]
         xf["yield_mom_5d"] = ys.diff(5)
@@ -167,6 +180,7 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
             / ys.rolling(63, min_periods=30).std()
         )
 
+    # vix mean-reversion signals
     if "vix" in universe.columns:
         v = universe["vix"]
         xf["vix_sma_ratio"] = v / v.rolling(21, min_periods=15).mean()
@@ -178,10 +192,12 @@ def build_cross_asset_features(universe: pd.DataFrame) -> pd.DataFrame:
     return xf
 
 
-
-
+# regime detection
+# gmm clusters market states by volatility and trend features;
+# hmm adds temporal transition structure which helps for iwm and btc
 
 def fit_regime(X: np.ndarray, regime_type: str, k: int = 2, seed: int = 42):
+    """fit a gmm or hmm regime model and return labels, probabilities, and the fitted model."""
     if regime_type == "gmm":
         model = GaussianMixture(k, covariance_type="full", n_init=10, random_state=seed)
         labels = model.fit_predict(X)
@@ -201,18 +217,23 @@ def fit_regime(X: np.ndarray, regime_type: str, k: int = 2, seed: int = 42):
 
 def add_regime_features(X_df: pd.DataFrame, labels: np.ndarray,
                         probs: np.ndarray, k: int) -> pd.DataFrame:
+    """augment the feature frame with regime labels, confidence, duration, and vol surprise."""
     out = X_df.copy()
     out["regime_label"] = labels
     for i in range(k):
         out[f"regime_prob_{i}"] = probs[:, i]
     out["regime_conf"] = np.max(probs, axis=1)
 
+    # how many consecutive days we've been in the current regime
     changes = (pd.Series(labels, index=out.index) != pd.Series(labels, index=out.index).shift(1))
     groups = changes.cumsum()
     out["regime_dur"] = (groups.groupby(groups).cumcount() + 1).values
 
+    # did a regime switch happen in the last 5 days
     out["regime_switch_5d"] = changes.rolling(5, min_periods=1).max().values
 
+    # vol surprise: current vol relative to the expanding mean for this regime
+    # helps detect unusual vol even within a known regime
     if "volatility_21d" in out.columns:
         vol = out["volatility_21d"].values
         vs = np.ones(len(vol))
@@ -227,10 +248,12 @@ def add_regime_features(X_df: pd.DataFrame, labels: np.ndarray,
     return out
 
 
-
-
+# signal model factory
+# each asset can pick its own classifier; logistic for spy (simpler signal),
+# lightgbm for qqq (captures nonlinear interactions)
 
 def make_signal_model(model_type: str):
+    """return a fresh classifier instance for the given model type."""
     if model_type == "lightgbm" and HAS_LGB:
         return lgb.LGBMClassifier(
             n_estimators=150, max_depth=5, learning_rate=0.03,
@@ -252,11 +275,13 @@ def make_signal_model(model_type: str):
         return LogisticRegression(max_iter=1000, C=0.3, random_state=42)
 
 
-
-
+# feature selection
+# prune noisy features to reduce overfitting; lgbm importance if available,
+# otherwise fall back to univariate correlation ranking
 
 def select_features(X_train: np.ndarray, y_train: np.ndarray,
                     feature_names: List[str], top_n: int = 20) -> List[int]:
+    """pick the top_n most informative features using lgbm importance or correlation."""
     if HAS_LGB and len(feature_names) > top_n:
         selector = lgb.LGBMClassifier(
             n_estimators=50, max_depth=4, learning_rate=0.05,
@@ -278,12 +303,14 @@ def select_features(X_train: np.ndarray, y_train: np.ndarray,
         return list(range(len(feature_names)))
 
 
-
-
+# target construction
+# forward returns are vol-scaled so the threshold means the same thing
+# across different vol regimes
 
 def build_targets(close: pd.Series, realized_vol: pd.Series,
                   horizons: List[int], vol_thresh: float
                   ) -> Dict[int, pd.Series]:
+    """create binary targets for each horizon based on vol-adjusted forward returns."""
     targets = {}
     for h in horizons:
         fwd = np.log(close.shift(-h) / close)
@@ -296,12 +323,13 @@ def build_targets(close: pd.Series, realized_vol: pd.Series,
     return targets
 
 
-
-
+# base rule fallback
+# simple trend + momentum + vol filter for assets where ml struggles
+# (btc and iwm both use this because their ml models invert during crashes)
 
 def base_rule(features: pd.DataFrame, universe: pd.DataFrame,
               asset_name: str = "BTC") -> pd.Series:
-    # long when: above SMA50, RSI > 40, vol below 75th pctile
+    """long when above sma50, rsi > 40, and vol is below its 75th percentile."""
     signals = pd.Series(0.0, index=features.index)
 
     above_sma = features["dist_sma_50"] > 0 if "dist_sma_50" in features.columns else True
@@ -318,10 +346,12 @@ def base_rule(features: pd.DataFrame, universe: pd.DataFrame,
     return signals
 
 
-
-
+# risk engine
+# converts raw signal probabilities into position sizes using vol targeting,
+# regime awareness, drawdown guards, and half-kelly sizing
 
 def kelly_fraction(win_rate: float, avg_win: float, avg_loss: float) -> float:
+    """half-kelly fraction clamped to [0, 1] for conservative sizing."""
     if avg_loss == 0 or avg_win == 0:
         return 0.0
     b = avg_win / abs(avg_loss)
@@ -338,9 +368,11 @@ def risk_engine_v2(
     returns_history: pd.Series,
     cfg: AssetConfig,
 ) -> dict:
-    # ranking-based continuous sizing
+    """combine signal strength, vol targeting, regime, and drawdown into a final exposure."""
     flags = []
 
+    # ranking-based sizing: only go long when the signal is above median
+    # this adapts to model calibration drift across folds
     if prob_rank_pct < 0.50:
         signal_exposure = 0.0
         if prob_rank_pct < 0.30:
@@ -349,6 +381,7 @@ def risk_engine_v2(
         signal_exposure = (prob_rank_pct - 0.50) / 0.50
         signal_exposure = min(signal_exposure, 1.0)
 
+    # vol targeting: scale exposure inversely with realized vol
     target_vol = cfg.risk_target_vol
     if realized_vol > 0:
         vol_scalar = target_vol / realized_vol
@@ -359,15 +392,18 @@ def risk_engine_v2(
     if realized_vol > target_vol * 2:
         flags.append("HIGH_VOL")
 
+    # regime-based cap: crisis regime (label 0) tightens max exposure
     regime_cap = cfg.risk_max_exposure
     if regime_label == 0:
         regime_cap = cfg.risk_regime_crisis_cap
         flags.append("CRISIS_REGIME")
 
+    # shaky regime confidence means the model isn't sure which state we're in
     if regime_conf < 0.6:
         regime_cap *= 0.8
         flags.append("REGIME_UNSTABLE")
 
+    # tail risk metrics from the trailing return distribution
     hist = returns_history.dropna()
     if len(hist) > 60:
         var_95 = float(np.percentile(hist, 5))
@@ -376,6 +412,7 @@ def risk_engine_v2(
     else:
         var_95, var_99, es_95 = -0.02, -0.04, -0.03
 
+    # drawdown guard: cut exposure when recent losses are steep
     dd_scalar = 1.0
     recent_dd = 0.0
     if len(hist) > 21:
@@ -387,6 +424,7 @@ def risk_engine_v2(
         elif recent_dd < -0.05:
             dd_scalar = 0.75
 
+    # kelly sizing: half-kelly from recent win/loss stats
     if len(hist) > 60:
         wins = hist[hist > 0]
         losses = hist[hist < 0]
@@ -397,10 +435,12 @@ def risk_engine_v2(
     else:
         kf = 0.5
 
+    # combine all scalars, then cap by regime and max exposure
     raw_exposure = signal_exposure * vol_scalar * dd_scalar
     capped_exposure = min(raw_exposure, regime_cap, cfg.risk_max_exposure)
     final_exposure = max(0.0, round(capped_exposure, 4))
 
+    # composite risk score (0-100) for monitoring dashboards
     risk_score = int(min(100, max(0,
         (realized_vol / 0.30) * 30
         + (1 - regime_conf) * 20
@@ -423,18 +463,25 @@ def risk_engine_v2(
     }
 
 
+# walk-forward fold generation
+# expanding window: every fold sees all history up to that point,
+# so later folds benefit from more training data
 
 def generate_expanding_folds(n_rows: int, min_train: int, step: int) -> List[Tuple[int, int, int]]:
+    """generate (start, train_end, test_end) tuples for expanding-window walk-forward."""
     folds = []
     train_end = min_train
     while train_end + step <= n_rows:
         test_end = min(train_end + step, n_rows)
         folds.append((0, train_end, test_end))
         train_end += step
+    # catch any leftover rows that don't fill a full step
     if train_end < n_rows and folds:
         folds.append((0, train_end, n_rows))
     return folds
 
+
+# main backtest orchestrator for a single asset
 
 def run_asset_backtest(
     asset_name: str,
@@ -443,7 +490,7 @@ def run_asset_backtest(
     universe: pd.DataFrame,
     cross_features: pd.DataFrame,
 ) -> dict:
-    """Run full walk-forward backtest for a single asset."""
+    """run full walk-forward backtest for a single asset."""
 
     print(f"\n{'='*70}")
     print(f"  BACKTEST: {asset_name} ({'base rule' if cfg.use_base_rule else cfg.signal_model})")
@@ -451,12 +498,12 @@ def run_asset_backtest(
 
     close_col = cfg.close_col
 
-    # ── Align dates ──
+    # align all dataframes to their shared date range
     common = features.index.intersection(cross_features.index).intersection(universe.index)
     feat = features.loc[common]
     xf = cross_features.loc[common]
 
-    # ── Asset-specific state features ──
+    # pull asset-specific state features into the signal frame
     asset_state_cols = [
         "rsi_14", "dist_sma_50", "bollinger_pos", "volatility_21d",
         "volatility_10d", "log_ret_1d", "atr_norm", "volume_ratio_20d",
@@ -467,11 +514,11 @@ def run_asset_backtest(
         if c in feat.columns:
             df_sig[c] = feat.loc[common, c]
 
-    # Realized vol
+    # realized vol from log returns, annualized
     asset_ret = np.log(universe[close_col] / universe[close_col].shift(1))
     df_sig["realized_vol_21d"] = asset_ret.rolling(21, min_periods=15).std() * np.sqrt(252)
 
-    # VIX/RV ratio for equities
+    # vix/rv ratio only makes sense for equities, not crypto
     if asset_name != "BTC" and "vix" in universe.columns:
         df_sig["vix_rv_ratio"] = (
             universe.loc[common, "vix"]
@@ -485,45 +532,47 @@ def run_asset_backtest(
     print(f"  Data: {df_sig.shape[0]} rows, {df_sig.shape[1]} features")
     print(f"  Period: {df_sig.index[0]} → {df_sig.index[-1]}")
 
-    # ── Regime feature columns ──
+    # figure out which regime features are actually available
     rcols = [c for c in cfg.regime_features if c in feat.columns]
     if asset_name != "BTC":
         rcols += [c for c in cfg.equity_regime_extras if c in universe.columns]
-    # Map into df_sig space
     regime_in_sig = [c for c in rcols if c in df_sig.columns]
 
-    # ── BTC BASE RULE PATH ──
+    # route to the appropriate backtest path
     if cfg.use_base_rule:
         return _run_base_rule_backtest(
             asset_name, cfg, df_sig, feat, universe, asset_close,
             asset_returns, regime_in_sig,
         )
 
-    # ── ML SIGNAL PATH ──
     return _run_ml_signal_backtest(
         asset_name, cfg, df_sig, feat, universe, asset_close,
         asset_returns, regime_in_sig,
     )
 
 
+# base rule backtest path (no ml)
+# still uses regime detection for the risk engine, just skips the signal model
+
 def _run_base_rule_backtest(
     asset_name, cfg, df_sig, feat, universe, asset_close,
     asset_returns, regime_in_sig,
 ):
-    """Base rule backtest (no ML) — works for any asset."""
+    """base rule backtest (no ml) for assets where ml underperforms."""
     print(f"  → Using BASE RULE (no ML signal)")
 
     signals = base_rule(df_sig, universe, asset_name)
     long_pct = signals.mean() * 100
     print(f"  Base rule: LONG {long_pct:.1f}% of days ({int(signals.sum())} / {len(signals)})")
 
-    # Regime detection (for risk engine)
+    # fit regime on entire history (no train/test split needed for base rule)
     rdata = df_sig[regime_in_sig].dropna()
     sc = StandardScaler()
     X_regime = sc.fit_transform(rdata)
     labels, probs, _ = fit_regime(X_regime, cfg.regime_type, cfg.regime_k)
 
-    # Ensure regime labels align: low-vol = 1, high-vol = 0
+    # orient labels so 0 = high-vol crisis, 1 = calm
+    # risk engine keys off regime_label == 0 meaning danger
     for k in range(cfg.regime_k):
         mask = labels == k
         if mask.sum() > 0:
@@ -533,7 +582,7 @@ def _run_base_rule_backtest(
                 probs = probs[:, ::-1]
                 break
 
-    # Build results row-by-row
+    # run each day through the risk engine
     regime_series = pd.Series(labels, index=rdata.index)
     conf_series = pd.Series(np.max(probs, axis=1), index=rdata.index)
 
@@ -563,28 +612,33 @@ def _run_base_rule_backtest(
     return _compute_backtest_metrics(asset_name, cfg, results, asset_returns, df_sig.index)
 
 
+# ml signal backtest path
+# trains a classifier on multi-horizon consensus targets,
+# walks forward with expanding windows so no future data leaks
+
 def _run_ml_signal_backtest(
     asset_name, cfg, df_sig, feat, universe, asset_close,
     asset_returns, regime_in_sig,
 ):
-    """ML signal backtest with multi-horizon ensemble."""
+    """ml signal backtest with multi-horizon ensemble."""
 
-    # ── Build multi-horizon targets ──
+    # build vol-scaled targets for each horizon, then combine
     rv = df_sig["realized_vol_21d"]
     targets = build_targets(asset_close, rv, cfg.horizons, cfg.vol_thresh)
 
-    # Create consensus target
+    # consensus across horizons reduces noise from any single lookahead
     target_df = pd.DataFrame(targets)
     valid_mask = target_df.notna().all(axis=1)
     consensus = target_df[valid_mask].mean(axis=1)
 
     if cfg.consensus_mode == "unanimous":
-        # ALL horizons must agree — much stricter, better balance
+        # all horizons must agree, much stricter but better balanced
         y_consensus = (consensus == 1.0).astype(int)
     else:
-        # Majority: > 0.5 means most horizons say favorable
+        # majority: > 0.5 means most horizons say favorable
         y_consensus = (consensus > 0.5).astype(int)
-    # Align
+
+    # align features and targets to the same index
     common_idx = df_sig.index.intersection(y_consensus.index)
     df_sig = df_sig.loc[common_idx]
     y_all = y_consensus.loc[common_idx].values
@@ -595,13 +649,13 @@ def _run_ml_signal_backtest(
     print(f"  After target alignment: {N} rows, {len(feat_cols)} features")
     print(f"  Class balance: {y_all.mean()*100:.1f}% favorable")
 
-    # ── Generate folds ──
+    # expanding-window folds: each fold trains on all prior data
     folds = generate_expanding_folds(N, cfg.min_train_days, cfg.step_days)
     print(f"  Walk-forward folds: {len(folds)}")
 
-    # ── Walk-forward loop ──
+    # walk-forward loop
     all_fold_metrics = []
-    all_test_rows = []  # (date, actual, prob, regime_label, regime_conf)
+    all_test_rows = []
 
     for fi, (ts, te, te_end) in enumerate(folds):
         fold_dates = df_sig.index[te:te_end]
@@ -609,7 +663,7 @@ def _run_ml_signal_backtest(
               f"({te} rows), test={df_sig.index[te]}→{df_sig.index[te_end-1]} "
               f"({te_end-te} rows)")
 
-        # ── Regime detection on train, predict on test ──
+        # regime detection: fit on train, predict on test with the same scaler
         r_input = [c for c in regime_in_sig if c in df_sig.columns]
         if len(r_input) > 0:
             rd_tr = df_sig.iloc[ts:te][r_input].values
@@ -618,7 +672,7 @@ def _run_ml_signal_backtest(
             rtr = sr.fit_transform(rd_tr)
             rte = sr.transform(rd_te)
 
-            # Fit on train, predict both train and test with SAME model
+            # fit regime model on train, apply to both train and test
             if cfg.regime_type == "gmm":
                 rm = GaussianMixture(cfg.regime_k, covariance_type="full",
                                      n_init=10, random_state=42)
@@ -642,8 +696,8 @@ def _run_ml_signal_backtest(
                 tel = rm.predict(rte)
                 tep = rm.predict_proba(rte)
 
-            # Orient labels: high-vol regime = 0 (crisis), low-vol = 1 (normal)
-            # This ensures the risk engine's regime_label==0 → crisis logic works
+            # orient labels so high-vol = 0 (crisis) consistently across folds
+            # without this, the risk engine's crisis logic would flip randomly
             if "volatility_21d" in df_sig.columns:
                 train_vol = df_sig.iloc[ts:te]["volatility_21d"].values
                 vol_by_regime = {}
@@ -654,7 +708,6 @@ def _run_ml_signal_backtest(
                 if len(vol_by_regime) == 2:
                     high_vol_label = max(vol_by_regime, key=vol_by_regime.get)
                     if high_vol_label != 0:
-                        # Flip: make high-vol = 0
                         trl = 1 - trl
                         trp = trp[:, ::-1]
                         tel = 1 - tel
@@ -671,12 +724,12 @@ def _run_ml_signal_backtest(
             tep = np.ones((te_end - te, 1))
             sil = 0.0
 
-        # ── Add regime features ──
+        # enrich features with regime state before training the signal model
         Xtr = add_regime_features(df_sig.iloc[ts:te].copy(), trl, trp, cfg.regime_k)
         Xte = add_regime_features(df_sig.iloc[te:te_end].copy(), tel, tep, cfg.regime_k)
         all_fc = list(Xtr.columns)
 
-        # ── Feature selection (on train only) ──
+        # feature selection on train only to avoid leakage
         ss = StandardScaler()
         Xtr_s = ss.fit_transform(Xtr)
         Xte_s = ss.transform(Xte)
@@ -687,13 +740,13 @@ def _run_ml_signal_backtest(
         Xtr_sel = Xtr_s[:, selected_idx]
         Xte_sel = Xte_s[:, selected_idx]
 
-        # ── Train & predict ──
+        # train signal model and predict on test
         model = make_signal_model(cfg.signal_model)
         model.fit(Xtr_sel, ytr)
         yp = model.predict(Xte_sel)
         ypr = model.predict_proba(Xte_sel)[:, 1]
 
-        # ── Fold metrics ──
+        # fold-level evaluation
         acc = accuracy_score(yte, yp)
         f1 = f1_score(yte, yp, zero_division=0)
         try:
@@ -714,7 +767,7 @@ def _run_ml_signal_backtest(
 
         print(f"      AUC={auc:.4f}  F1={f1:.4f}  Sil={sil:.4f}")
 
-        # ── Store test predictions ──
+        # collect test predictions for post-loop risk engine pass
         for i, date in enumerate(fold_dates):
             all_test_rows.append({
                 "date": date,
@@ -724,21 +777,21 @@ def _run_ml_signal_backtest(
                 "regime_conf": float(np.max(tep[i])),
             })
 
-    # ── Aggregate fold metrics ──
+    # aggregate metrics across all folds
     fm = pd.DataFrame(all_fold_metrics)
     print(f"\n  AGGREGATE: AUC={fm['auc'].mean():.4f}±{fm['auc'].std():.4f}  "
           f"F1={fm['f1'].mean():.4f}  PR-AUC={fm['prauc'].mean():.4f}")
 
-    # ── Build strategy with risk engine v2 ──
+    # apply risk engine to the stitched test predictions
     test_df = pd.DataFrame(all_test_rows).set_index("date").sort_index()
-    # Remove duplicate dates (overlapping folds) — keep last
+    # overlapping folds can produce duplicate dates, keep the latest
     test_df = test_df[~test_df.index.duplicated(keep="last")]
 
-    # Compute probability rank percentile (rolling 63-day window)
+    # rolling percentile rank adapts to calibration drift across folds
     test_df["prob_rank_pct"] = test_df["prob"].rolling(
         63, min_periods=20
     ).apply(lambda x: (x.iloc[-1] >= x).mean(), raw=False)
-    # Fill early values with global rank
+    # bootstrap early rows with global rank since rolling window isn't full yet
     early_mask = test_df["prob_rank_pct"].isna()
     if early_mask.any():
         early_probs = test_df.loc[early_mask, "prob"]
@@ -746,7 +799,7 @@ def _run_ml_signal_backtest(
 
     test_df["asset_ret"] = asset_returns.loc[test_df.index]
 
-    # Apply risk engine
+    # run risk engine on every test day
     risk_results = []
     for date, row in test_df.iterrows():
         rv = float(df_sig.loc[date, "realized_vol_21d"]) if date in df_sig.index else 0.15
@@ -768,7 +821,7 @@ def _run_ml_signal_backtest(
         risk["regime_label"] = row["regime_label"]
         risk_results.append(risk)
 
-    # ── Diagnostic output ──
+    # diagnostic output for debugging exposure behavior
     diag_df = pd.DataFrame(risk_results)
     print(f"\n  RISK ENGINE DIAGNOSTICS:")
     print(f"    prob range:       [{test_df['prob'].min():.4f}, {test_df['prob'].max():.4f}]")
@@ -790,20 +843,19 @@ def _run_ml_signal_backtest(
     )
 
 
+# backtest metrics computation
 
 def _compute_backtest_metrics(
     asset_name: str, cfg: AssetConfig, risk_results: list,
     asset_returns: pd.Series, full_index: pd.DatetimeIndex,
     fold_metrics: list = None, tx_cost_bps: float = 5.0,
 ) -> dict:
-    """Compute strategy metrics from risk engine output."""
+    """compute sharpe, drawdown, turnover, and other strategy metrics from risk engine output."""
 
     rdf = pd.DataFrame(risk_results).set_index("date").sort_index()
 
-    # ── Exposure smoothing (EMA) to reduce turnover ──
-    # Raw risk engine output changes daily with probability ranking shifts.
-    # EMA smoothing creates gradual position transitions instead of daily flips.
-    # Disabled (halflife=0) for base-rule assets that need sharp exits.
+    # ema smoothing on exposure reduces turnover from daily probability jitter
+    # disabled (halflife=0) for base-rule assets that need sharp regime exits
     raw_exposure = rdf["recommended_exposure"].copy()
     rdf["raw_exposure"] = raw_exposure
     if cfg.exposure_ema_halflife > 0:
@@ -811,16 +863,16 @@ def _compute_backtest_metrics(
             halflife=cfg.exposure_ema_halflife, min_periods=1
         ).mean()
 
-    # Strategy returns (with transaction costs)
+    # strategy returns net of round-trip transaction costs
     rdf["exposure_change"] = rdf["recommended_exposure"].diff().abs().fillna(0)
     rdf["tx_cost"] = rdf["exposure_change"] * (tx_cost_bps / 10000)
     rdf["sized_ret"] = rdf["recommended_exposure"] * rdf["asset_ret"] - rdf["tx_cost"]
 
-    # Cumulative
+    # cumulative return series for charting
     rdf["cum_sized"] = rdf["sized_ret"].cumsum()
     rdf["cum_bh"] = rdf["asset_ret"].cumsum()
 
-    # ── Key metrics ──
+    # strategy vs buy-and-hold comparison metrics
     sr = rdf["sized_ret"]
     bh = rdf["asset_ret"]
 
@@ -839,17 +891,16 @@ def _compute_backtest_metrics(
     sized_vol = float(sr.std() * np.sqrt(252)) * 100
     turnover = float(rdf["exposure_change"].mean()) * 252  # annualized
 
-    # Win rate (when exposed)
+    # win rate only counts days where we actually had exposure
     exposed = rdf[rdf["recommended_exposure"] > 0.01]
     win_rate = float((exposed["sized_ret"] > 0).mean()) * 100 if len(exposed) > 0 else 0
 
-    # Risk flags summary
+    # tally risk flags for the summary report
     all_flags = []
     for flags in rdf["risk_flags"]:
         all_flags.extend(flags)
     flag_counts = dict(pd.Series(all_flags).value_counts()) if all_flags else {}
 
-    # VaR
     avg_var95 = float(rdf["var_95_1d"].mean()) * 100
 
     metrics = {
@@ -880,7 +931,6 @@ def _compute_backtest_metrics(
         metrics["mean_f1"] = round(float(fm["f1"].mean()), 4)
         metrics["fold_details"] = fold_metrics
 
-    # Print summary
     print(f"\n  ── {asset_name} RESULTS ──")
     print(f"  Sharpe:  {metrics['sized_sharpe']:+.3f}  (B&H: {metrics['bh_sharpe']:+.3f})")
     print(f"  Return:  {metrics['cum_return_sized_pct']:+.2f}%  (B&H: {metrics['cum_return_bh_pct']:+.2f}%)")
@@ -898,14 +948,15 @@ def _compute_backtest_metrics(
     }
 
 
+# plotting
 
 def plot_backtest_results(all_results: Dict[str, dict]):
-    """Generate all backtest figures."""
+    """generate equity curve, exposure, drawdown, and summary bar charts."""
 
     n_assets = len(all_results)
     colors = {"SPY": "#2ecc71", "QQQ": "#3498db", "IWM": "#9b59b6", "BTC": "#f39c12"}
 
-    # ── 1) Equity curves ──
+    # equity curves: strategy vs buy-and-hold for each asset
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     axes = axes.flatten()
 
@@ -931,7 +982,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
     plt.close()
     print(f"\n  Saved: {REPORT_FIG / 'v21_equity_curves.png'}")
 
-    # ── 2) Exposure + regime overlay ──
+    # exposure and regime overlay: shows when the strategy scales in/out
     fig, axes = plt.subplots(n_assets, 1, figsize=(16, 4 * n_assets))
     if n_assets == 1:
         axes = [axes]
@@ -944,7 +995,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
         ax.fill_between(rdf.index, 0, rdf["recommended_exposure"] * 100,
                         alpha=0.4, color=color, label="Exposure")
 
-        # Regime overlay
+        # red shading for crisis regime periods
         if "regime_label" in rdf.columns:
             crisis_mask = rdf["regime_label"] == 0
             for start, end in _contiguous_ranges(crisis_mask):
@@ -962,7 +1013,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
     plt.close()
     print(f"  Saved: {REPORT_FIG / 'v21_exposure_regime.png'}")
 
-    # ── 3) Drawdown comparison ──
+    # drawdown comparison: strategy should have shallower drawdowns than buy-and-hold
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     axes = axes.flatten()
 
@@ -986,13 +1037,13 @@ def plot_backtest_results(all_results: Dict[str, dict]):
     plt.close()
     print(f"  Saved: {REPORT_FIG / 'v21_drawdowns.png'}")
 
-    # ── 4) Summary bar chart ──
+    # summary bar charts: quick cross-asset comparison
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     assets = list(all_results.keys())
     x = range(len(assets))
     c = [colors.get(a, "#333") for a in assets]
 
-    # Sharpe
+    # sharpe comparison
     aegis_sharpe = [all_results[a]["metrics"]["sized_sharpe"] for a in assets]
     bh_sharpe = [all_results[a]["metrics"]["bh_sharpe"] for a in assets]
     axes[0].bar([i - 0.15 for i in x], aegis_sharpe, 0.3, color=c, label="AEGIS V2.1")
@@ -1004,7 +1055,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
     axes[0].axhline(y=0, color="black", linewidth=0.5)
     axes[0].grid(True, alpha=0.3)
 
-    # Max DD
+    # max drawdown comparison
     aegis_dd = [all_results[a]["metrics"]["max_dd_sized_pct"] for a in assets]
     bh_dd = [all_results[a]["metrics"]["max_dd_bh_pct"] for a in assets]
     axes[1].bar([i - 0.15 for i in x], aegis_dd, 0.3, color=c, label="AEGIS V2.1")
@@ -1015,7 +1066,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
     axes[1].legend()
     axes[1].grid(True, alpha=0.3)
 
-    # Exposure
+    # average exposure per asset
     exp = [all_results[a]["metrics"]["avg_exposure_pct"] for a in assets]
     axes[2].bar(x, exp, color=c)
     axes[2].set_xticks(list(x))
@@ -1031,7 +1082,7 @@ def plot_backtest_results(all_results: Dict[str, dict]):
 
 
 def _contiguous_ranges(mask: pd.Series) -> list:
-    """Find contiguous True ranges in a boolean series."""
+    """find contiguous True ranges in a boolean series for shading."""
     ranges = []
     start = None
     for i, val in enumerate(mask):
@@ -1045,11 +1096,12 @@ def _contiguous_ranges(mask: pd.Series) -> list:
     return ranges
 
 
+# output persistence
 
 def save_outputs(all_results: Dict[str, dict]):
-    """Save metrics, backtest data, and model artifacts."""
+    """save summary csv, full metrics json, per-asset parquets, and fold metrics."""
 
-    # ── 1) Summary CSV ──
+    # summary csv for quick comparison across assets
     summary_rows = []
     for asset, res in all_results.items():
         m = res["metrics"]
@@ -1061,29 +1113,27 @@ def save_outputs(all_results: Dict[str, dict]):
     summary_df.to_csv(REPORT_MET / "v21_backtest_summary.csv", index=False)
     print(f"\n  Saved: {REPORT_MET / 'v21_backtest_summary.csv'}")
 
-    # ── 2) Full metrics JSON ──
+    # full json for downstream consumption by the api/dashboard
     metrics_json = {}
     for asset, res in all_results.items():
         m = res["metrics"].copy()
-        # Convert non-serializable types
         if "fold_details" in m:
             for fd in m["fold_details"]:
-                fd.pop("selected_features", None)  # too verbose for JSON
+                fd.pop("selected_features", None)  # too verbose for json
         metrics_json[asset] = m
 
     with open(REPORT_MET / "v21_backtest_metrics.json", "w") as f:
         json.dump(metrics_json, f, indent=2, default=str)
     print(f"  Saved: {REPORT_MET / 'v21_backtest_metrics.json'}")
 
-    # ── 3) Per-asset backtest timeseries ──
+    # per-asset daily timeseries for detailed analysis
     for asset, res in all_results.items():
         rdf = res["rdf"].copy()
-        # Convert list columns to strings for parquet
         rdf["risk_flags"] = rdf["risk_flags"].apply(lambda x: ",".join(x) if x else "")
         rdf.to_parquet(DATA_PROC / f"v21_backtest_{asset.lower()}.parquet")
     print(f"  Saved: per-asset backtest parquets to {DATA_PROC}")
 
-    # ── 4) Fold metrics ──
+    # fold-level metrics for diagnosing per-period model quality
     for asset, res in all_results.items():
         if res.get("fold_metrics"):
             fm = pd.DataFrame(res["fold_metrics"])
@@ -1091,22 +1141,24 @@ def save_outputs(all_results: Dict[str, dict]):
     print(f"  Saved: per-asset fold metrics to {REPORT_MET}")
 
 
+# entry point
 
 def main():
+    """run the full walk-forward backtest across all configured assets."""
     print("=" * 70)
     print("  AEGIS V2.1 — Walk-Forward Backtest")
     print("  Per-asset architecture | Multi-horizon ensemble | Risk v2")
     print("=" * 70)
 
-    # ── Load data ──
+    # load universe prices and per-asset feature sets
     universe, features = load_data()
 
-    # ── Cross-asset features ──
+    # cross-asset features capture macro context no single asset can see alone
     print("\nBuilding cross-asset features...")
     cross_features = build_cross_asset_features(universe)
     print(f"  Cross-asset features: {cross_features.shape}")
 
-    # ── Run per-asset backtests ──
+    # run each asset independently with its own config
     all_results = {}
     for asset_name, cfg in ASSET_CONFIGS.items():
         if asset_name not in features:
@@ -1119,15 +1171,14 @@ def main():
         )
         all_results[asset_name] = result
 
-    # ── Generate figures ──
+    # charts and persistence
     print("\n\nGenerating figures...")
     plot_backtest_results(all_results)
 
-    # ── Save outputs ──
     print("\nSaving outputs...")
     save_outputs(all_results)
 
-    # ── Final summary ──
+    # final cross-asset summary
     print("\n" + "=" * 70)
     print("  AEGIS V2.1 BACKTEST COMPLETE")
     print("=" * 70)

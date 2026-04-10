@@ -1,9 +1,14 @@
-"""Data access layer — reads backtest artifacts and shapes them for the API."""
+"""Data access layer — reads backtest artifacts and shapes them for the API.
+
+Loads parquet/json files once, caches them in memory, and converts
+them into JSON-friendly response shapes the frontend can render directly.
+"""
 
 import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
+
 BASE = Path(__file__).resolve().parent.parent.parent  # api/services/ → Backend/
 DATA_PROC = BASE / "data" / "processed"
 REPORT_MET = BASE / "reports" / "metrics"
@@ -12,11 +17,13 @@ ASSETS = ["spy", "qqq", "iwm", "btc"]
 LIVE_SIGNALS_PATH = DATA_PROC / "live_signals.json"
 LIVE_HISTORY_PATH = DATA_PROC / "live_signal_history.json"
 
+# in-memory caches so we only read from disk once per process
 _backtest_cache: dict[str, pd.DataFrame] = {}
 _metrics_cache: dict[str, dict] = {}
 
 
 def _load_backtest(asset: str) -> pd.DataFrame:
+    """Load and cache the full backtest time series for one asset."""
     if asset not in _backtest_cache:
         path = DATA_PROC / f"v21_backtest_{asset}.parquet"
         df = pd.read_parquet(path)
@@ -26,6 +33,7 @@ def _load_backtest(asset: str) -> pd.DataFrame:
 
 
 def _load_metrics(asset: str) -> dict:
+    """Load and cache the metrics JSON from the backtest run."""
     if asset not in _metrics_cache:
         path = REPORT_MET / f"v21_{asset}_metrics.json"
         with open(path) as f:
@@ -34,18 +42,22 @@ def _load_metrics(asset: str) -> dict:
 
 
 def get_backtest_df(asset: str) -> pd.DataFrame:
+    """Public accessor for the cached backtest dataframe."""
     return _load_backtest(asset.lower())
 
 
 def get_metrics(asset: str) -> dict:
+    """Return the metric bundle (sharpe, return, drawdown, etc.) for one asset."""
     return _load_metrics(asset.lower())
 
 
 def get_all_metrics() -> dict:
+    """Return metrics for every tracked asset, keyed by uppercase symbol."""
     return {a.upper(): get_metrics(a) for a in ASSETS}
 
 
 def get_latest_signals() -> dict:
+    """Use the last row of each backtest as the current signal snapshot."""
     signals = {}
     for asset in ASSETS:
         df = _load_backtest(asset)
@@ -64,6 +76,7 @@ def get_latest_signals() -> dict:
 
 
 def get_equity_curve(asset: str) -> list[dict]:
+    """Serialize cumulative strategy vs benchmark returns for charting."""
     df = _load_backtest(asset.lower())
     records = []
     for date, row in df.iterrows():
@@ -76,6 +89,7 @@ def get_equity_curve(asset: str) -> list[dict]:
 
 
 def get_drawdown_series(asset: str) -> list[dict]:
+    """Compute and return the drawdown series for strategy and buy-and-hold."""
     df = _load_backtest(asset.lower())
     dd_sized = (df["cum_sized"] - df["cum_sized"].cummax()) * 100
     dd_bh = (df["cum_bh"] - df["cum_bh"].cummax()) * 100
@@ -90,6 +104,7 @@ def get_drawdown_series(asset: str) -> list[dict]:
 
 
 def get_regime_series(asset: str) -> list[dict]:
+    """Return regime labels alongside exposure for the regime overlay chart."""
     df = _load_backtest(asset.lower())
     records = []
     for date, row in df.iterrows():
@@ -102,6 +117,7 @@ def get_regime_series(asset: str) -> list[dict]:
 
 
 def get_signal_history(asset: str, days: int = 30) -> list[dict]:
+    """Return the last N days of signal decisions for one asset."""
     df = _load_backtest(asset.lower()).tail(days)
     records = []
     for date, row in df.iterrows():
@@ -117,30 +133,37 @@ def get_signal_history(asset: str, days: int = 30) -> list[dict]:
 
 
 def get_portfolio_summary() -> dict:
+    """Build the equal-weight portfolio view for the dashboard landing page."""
     dfs = {}
     for asset in ASSETS:
         df = _load_backtest(asset)
         dfs[asset] = df["sized_ret"]
 
     combined = pd.DataFrame(dfs)
-    # only dates where all assets have data
+
+    # only use dates where all assets have data (avoids distortion from staggered starts)
     common_idx = combined.dropna().index
     combined = combined.loc[common_idx]
+
+    # equal-weight portfolio: average daily return across all 4 assets
     port_ret = combined.mean(axis=1)
 
     cum_ret = port_ret.cumsum()
     dd = cum_ret - cum_ret.cummax()
 
+    # annualize sharpe: daily sharpe * sqrt(252 trading days)
     sharpe = float(port_ret.mean() / port_ret.std() * np.sqrt(252)) if port_ret.std() > 0 else 0
     total_return = float(cum_ret.iloc[-1]) * 100
     max_dd = float(dd.min()) * 100
     vol = float(port_ret.std() * np.sqrt(252)) * 100
 
+    # current allocation per asset (from most recent backtest row)
     allocation = {}
     for asset in ASSETS:
         df = _load_backtest(asset)
         allocation[asset.upper()] = round(float(df.iloc[-1]["recommended_exposure"]) * 100, 1)
 
+    # build the equity curve for the portfolio chart
     equity = []
     for date in common_idx:
         equity.append({
@@ -162,6 +185,7 @@ def get_portfolio_summary() -> dict:
 
 
 def get_live_signals() -> dict | None:
+    """Read the most recent live signal snapshot (written by daily_signals.py)."""
     if not LIVE_SIGNALS_PATH.exists():
         return None
     with open(LIVE_SIGNALS_PATH) as f:
@@ -169,6 +193,7 @@ def get_live_signals() -> dict | None:
 
 
 def get_live_history() -> list | None:
+    """Read the rolling archive of daily live signals."""
     if not LIVE_HISTORY_PATH.exists():
         return None
     with open(LIVE_HISTORY_PATH) as f:

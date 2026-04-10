@@ -1,0 +1,23 @@
+{
+  "asset": "BTC",
+  "sized_sharpe": 2.528,
+  "bh_sharpe": 0.683,
+  "cum_return_sized_pct": 551.46,
+  "cum_return_bh_pct": 591.12,
+  "max_dd_sized_pct": -7.14,
+  "max_dd_bh_pct": -179.57,
+  "avg_exposure_pct": 24.9,
+  "annualized_vol_pct": 13.99,
+  "turnover_annual": 11.37,
+  "win_rate_pct": 60.3,
+  "avg_var95_pct": -4.94,
+  "flag_counts": {
+    "DRAWDOWN_GUARD": "3266",
+    "LOW_CONFIDENCE": "2386",
+    "CRISIS_REGIME": "1404",
+    "HIGH_VOL": "432",
+    "REGIME_UNSTABLE": "27"
+  },
+  "n_test_days": 3930,
+  "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+}

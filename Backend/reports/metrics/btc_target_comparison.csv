@@ -1,0 +1,5 @@
+Target,Horizon,Threshold,Model,AUC,Best_τ,Sharpe,BH_Sharpe,Rows
+5d_t0.3,5d,0.3,LightGBM,0.5459,0.7,-1.355,-0.739,1771
+5d_t0.5,5d,0.5,LightGBM,0.5400,0.65,-0.485,-0.734,1364
+10d_t0.3,10d,0.3,LightGBM,0.5256,0.65,-0.535,-1.146,1778
+10d_t0.5,10d,0.5,LightGBM,0.5049,0.7,0.190,-0.574,1424

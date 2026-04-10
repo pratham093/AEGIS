@@ -1,0 +1,6 @@
+Asset,Type,Regime,Regime_Sil,Signal,AUC,Best_τ,Sweep_Sharpe,LayerC_Sharpe,LayerC_DD,LayerC_Exp,BH_Sharpe
+SPY,equity,HMM,0.3121,Logistic,0.5097,0.55,0.426,-0.239,-5.52%,7.5%,-0.029
+QQQ,equity,HMM,0.3032,XGBoost,0.5000,0.5,0.193,0.000,0.00%,0.0%,0.193
+IWM,equity,GMM,0.3354,LightGBM,0.5633,0.75,0.043,-0.414,-3.78%,2.8%,-0.466
+BTC,crypto,HMM,0.2945,Logistic,0.5614,0.5,-1.050,-0.688,-5.96%,1.0%,-0.647
+GLD,commodity,HMM,0.4272,Logistic,0.5163,0.5,-0.422,-0.330,-2.18%,3.0%,0.830

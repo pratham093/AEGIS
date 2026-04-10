@@ -10,12 +10,8 @@ node_modules/
 .next/
 .turbo/
 
-# Data (too large for git)
+# Raw data (can be regenerated)
 Backend/data/raw/
-Backend/data/processed/
-Backend/data/features/
-Backend/models/
-Backend/reports/
 Backend/logs/
 Backend/notebooks/
 

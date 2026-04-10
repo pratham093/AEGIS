@@ -24,9 +24,11 @@ WORKDIR /code
 
 COPY --chown=aegis:aegis api/           api/
 COPY --chown=aegis:aegis aegis/         aegis/
+COPY --chown=aegis:aegis data/          data/
+COPY --chown=aegis:aegis reports/       reports/
 COPY --chown=aegis:aegis requirements.txt .
 
-RUN mkdir -p data/raw data/processed data/features models reports/figures reports/metrics logs
+RUN mkdir -p logs models
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

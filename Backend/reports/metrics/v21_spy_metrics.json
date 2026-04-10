@@ -1,0 +1,23 @@
+{
+  "asset": "SPY",
+  "sized_sharpe": 0.839,
+  "bh_sharpe": 0.59,
+  "cum_return_sized_pct": 76.47,
+  "cum_return_bh_pct": 136.71,
+  "max_dd_sized_pct": -9.72,
+  "max_dd_bh_pct": -41.12,
+  "avg_exposure_pct": 52.9,
+  "annualized_vol_pct": 5.85,
+  "turnover_annual": 5.85,
+  "win_rate_pct": 37.9,
+  "avg_var95_pct": -1.39,
+  "flag_counts": {
+    "LOW_CONFIDENCE": "1702",
+    "CRISIS_REGIME": "1082",
+    "DRAWDOWN_GUARD": "640",
+    "REGIME_UNSTABLE": "113",
+    "HIGH_VOL": "80"
+  },
+  "n_test_days": 3926,
+  "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+}

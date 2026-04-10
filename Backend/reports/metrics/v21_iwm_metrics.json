@@ -1,0 +1,23 @@
+{
+  "asset": "IWM",
+  "sized_sharpe": 2.022,
+  "bh_sharpe": 0.288,
+  "cum_return_sized_pct": 205.79,
+  "cum_return_bh_pct": 84.79,
+  "max_dd_sized_pct": -3.91,
+  "max_dd_bh_pct": -52.99,
+  "avg_exposure_pct": 36.3,
+  "annualized_vol_pct": 6.53,
+  "turnover_annual": 16.15,
+  "win_rate_pct": 41.8,
+  "avg_var95_pct": -1.8,
+  "flag_counts": {
+    "LOW_CONFIDENCE": "2161",
+    "CRISIS_REGIME": "1308",
+    "DRAWDOWN_GUARD": "1048",
+    "HIGH_VOL": "167",
+    "REGIME_UNSTABLE": "43"
+  },
+  "n_test_days": 3930,
+  "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+}

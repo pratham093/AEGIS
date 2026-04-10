@@ -1,0 +1,23 @@
+{
+  "asset": "QQQ",
+  "sized_sharpe": 0.918,
+  "bh_sharpe": 0.639,
+  "cum_return_sized_pct": 101.71,
+  "cum_return_bh_pct": 182.69,
+  "max_dd_sized_pct": -8.26,
+  "max_dd_bh_pct": -43.26,
+  "avg_exposure_pct": 47.5,
+  "annualized_vol_pct": 7.12,
+  "turnover_annual": 5.72,
+  "win_rate_pct": 39.2,
+  "avg_var95_pct": -1.82,
+  "flag_counts": {
+    "LOW_CONFIDENCE": "1737",
+    "CRISIS_REGIME": "1321",
+    "DRAWDOWN_GUARD": "1022",
+    "HIGH_VOL": "247",
+    "REGIME_UNSTABLE": "131"
+  },
+  "n_test_days": 3918,
+  "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+}

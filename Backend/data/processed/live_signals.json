@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-04-09T18:28:31.362946",
+  "market_date": "2026-04-09",
+  "signals": {
+    "SPY": {
+      "asset": "SPY",
+      "date": "2026-04-09",
+      "price": 679.91,
+      "daily_change_pct": 0.58,
+      "signal": "FLAT",
+      "portfolio_weight_pct": 30.0,
+      "exposure_pct": 0.0,
+      "risk_score": 70,
+      "regime": "NORMAL",
+      "regime_confidence": 93.1,
+      "realized_vol_pct": 19.9,
+      "risk_flags": [
+        "LOW_CONFIDENCE"
+      ],
+      "var_95_pct": -1.533,
+      "kelly_fraction": 0.0865,
+      "above_sma50": true,
+      "rsi_14": 61.5,
+      "vol_filter_pass": false
+    },
+    "QQQ": {
+      "asset": "QQQ",
+      "date": "2026-04-09",
+      "price": 610.19,
+      "daily_change_pct": 0.68,
+      "signal": "FLAT",
+      "portfolio_weight_pct": 25.0,
+      "exposure_pct": 0.0,
+      "risk_score": 81,
+      "regime": "NORMAL",
+      "regime_confidence": 87.4,
+      "realized_vol_pct": 23.8,
+      "risk_flags": [
+        "LOW_CONFIDENCE",
+        "DRAWDOWN_GUARD"
+      ],
+      "var_95_pct": -1.903,
+      "kelly_fraction": 0.0834,
+      "above_sma50": true,
+      "rsi_14": 58.4,
+      "vol_filter_pass": false
+    },
+    "IWM": {
+      "asset": "IWM",
+      "date": "2026-04-09",
+      "price": 261.96,
+      "daily_change_pct": 0.57,
+      "signal": "FLAT",
+      "portfolio_weight_pct": 25.0,
+      "exposure_pct": 0.0,
+      "risk_score": 79,
+      "regime": "CRISIS",
+      "regime_confidence": 97.2,
+      "realized_vol_pct": 25.1,
+      "risk_flags": [
+        "LOW_CONFIDENCE",
+        "CRISIS_REGIME",
+        "DRAWDOWN_GUARD"
+      ],
+      "var_95_pct": -1.991,
+      "kelly_fraction": 0.0745,
+      "above_sma50": true,
+      "rsi_14": 64.5,
+      "vol_filter_pass": false
+    },
+    "BTC": {
+      "asset": "BTC",
+      "date": "2026-04-09",
+      "price": 72794.11,
+      "daily_change_pct": 2.35,
+      "signal": "LONG",
+      "portfolio_weight_pct": 20.0,
+      "exposure_pct": 20.0,
+      "risk_score": 100,
+      "regime": "NORMAL",
+      "regime_confidence": 99.6,
+      "realized_vol_pct": 38.6,
+      "risk_flags": [
+        "DRAWDOWN_GUARD"
+      ],
+      "var_95_pct": -4.06,
+      "kelly_fraction": 0.0,
+      "above_sma50": true,
+      "rsi_14": 58.0,
+      "vol_filter_pass": true
+    }
+  }
+}

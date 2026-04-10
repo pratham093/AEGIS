@@ -1,0 +1,11 @@
+AEGIS V1 — Data Quality Report
+==================================================
+
+Universe: 4173 rows × 38 columns
+Date range: 2014-09-17 → 2026-02-18
+Total missing values: 176
+Missing after forward-fill: 176
+
+--- Feature Datasets ---
+  qqq: 42 features × 3918 rows
+    Missing: 0 (0.0000%)

@@ -1,0 +1,6 @@
+Metric,GMM,HMM,Winner
+Silhouette,0.3400,0.2507,GMM
+Davies-Bouldin,1.4875,1.6978,GMM
+Calinski-Harabasz,1343.02,1009.22,GMM
+Stability (ARI),1.0000,0.9107,GMM
+Regime Persistence,No,Yes,HMM

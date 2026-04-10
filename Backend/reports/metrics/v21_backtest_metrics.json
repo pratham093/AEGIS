@@ -1,0 +1,94 @@
+{
+  "SPY": {
+    "asset": "SPY",
+    "sized_sharpe": 0.839,
+    "bh_sharpe": 0.59,
+    "cum_return_sized_pct": 76.47,
+    "cum_return_bh_pct": 136.71,
+    "max_dd_sized_pct": -9.72,
+    "max_dd_bh_pct": -41.12,
+    "avg_exposure_pct": 52.9,
+    "annualized_vol_pct": 5.85,
+    "turnover_annual": 5.85,
+    "win_rate_pct": 37.9,
+    "avg_var95_pct": -1.39,
+    "flag_counts": {
+      "LOW_CONFIDENCE": "1702",
+      "CRISIS_REGIME": "1082",
+      "DRAWDOWN_GUARD": "640",
+      "REGIME_UNSTABLE": "113",
+      "HIGH_VOL": "80"
+    },
+    "n_test_days": 3926,
+    "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+  },
+  "QQQ": {
+    "asset": "QQQ",
+    "sized_sharpe": 0.918,
+    "bh_sharpe": 0.639,
+    "cum_return_sized_pct": 101.71,
+    "cum_return_bh_pct": 182.69,
+    "max_dd_sized_pct": -8.26,
+    "max_dd_bh_pct": -43.26,
+    "avg_exposure_pct": 47.5,
+    "annualized_vol_pct": 7.12,
+    "turnover_annual": 5.72,
+    "win_rate_pct": 39.2,
+    "avg_var95_pct": -1.82,
+    "flag_counts": {
+      "LOW_CONFIDENCE": "1737",
+      "CRISIS_REGIME": "1321",
+      "DRAWDOWN_GUARD": "1022",
+      "HIGH_VOL": "247",
+      "REGIME_UNSTABLE": "131"
+    },
+    "n_test_days": 3918,
+    "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+  },
+  "IWM": {
+    "asset": "IWM",
+    "sized_sharpe": 2.022,
+    "bh_sharpe": 0.288,
+    "cum_return_sized_pct": 205.79,
+    "cum_return_bh_pct": 84.79,
+    "max_dd_sized_pct": -3.91,
+    "max_dd_bh_pct": -52.99,
+    "avg_exposure_pct": 36.3,
+    "annualized_vol_pct": 6.53,
+    "turnover_annual": 16.15,
+    "win_rate_pct": 41.8,
+    "avg_var95_pct": -1.8,
+    "flag_counts": {
+      "LOW_CONFIDENCE": "2161",
+      "CRISIS_REGIME": "1308",
+      "DRAWDOWN_GUARD": "1048",
+      "HIGH_VOL": "167",
+      "REGIME_UNSTABLE": "43"
+    },
+    "n_test_days": 3930,
+    "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+  },
+  "BTC": {
+    "asset": "BTC",
+    "sized_sharpe": 2.528,
+    "bh_sharpe": 0.683,
+    "cum_return_sized_pct": 551.46,
+    "cum_return_bh_pct": 591.12,
+    "max_dd_sized_pct": -7.14,
+    "max_dd_bh_pct": -179.57,
+    "avg_exposure_pct": 24.9,
+    "annualized_vol_pct": 13.99,
+    "turnover_annual": 11.37,
+    "win_rate_pct": 60.3,
+    "avg_var95_pct": -4.94,
+    "flag_counts": {
+      "DRAWDOWN_GUARD": "3266",
+      "LOW_CONFIDENCE": "2386",
+      "CRISIS_REGIME": "1404",
+      "HIGH_VOL": "432",
+      "REGIME_UNSTABLE": "27"
+    },
+    "n_test_days": 3930,
+    "test_period": "2015-04-04 00:00:00 \u2192 2026-01-05 00:00:00"
+  }
+}

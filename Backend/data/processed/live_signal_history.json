@@ -1,0 +1,1400 @@
+[
+  {
+    "generated_at": "2026-04-05T22:19:52.063751",
+    "market_date": "2026-04-04",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-04",
+        "price": 655.83,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "exposure_pct": 0.0,
+        "risk_score": 65,
+        "regime": "CRISIS",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 16.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME"
+        ],
+        "var_95_pct": -1.225,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 55.9,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-04",
+        "price": 584.98,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "exposure_pct": 0.0,
+        "risk_score": 72,
+        "regime": "CRISIS",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 20.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.814,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 52.6,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-04",
+        "price": 251.29,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "exposure_pct": 0.0,
+        "risk_score": 72,
+        "regime": "CRISIS",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 21.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.801,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 63.5,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-04",
+        "price": 67290.52,
+        "daily_change_pct": 0.54,
+        "signal": "FLAT",
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 34.9,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -3.871,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 45.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-05T22:41:36.984022",
+    "market_date": "2026-01-10",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-01-10",
+        "price": 655.83,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "exposure_pct": 100.0,
+        "risk_score": 15,
+        "regime": "NORMAL",
+        "regime_confidence": 99.1,
+        "realized_vol_pct": 5.7,
+        "risk_flags": [],
+        "var_95_pct": -0.85,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 57.5,
+        "vol_filter_pass": true
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-01-10",
+        "price": 584.98,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "exposure_pct": 100.0,
+        "risk_score": 21,
+        "regime": "NORMAL",
+        "regime_confidence": 93.0,
+        "realized_vol_pct": 7.2,
+        "risk_flags": [],
+        "var_95_pct": -1.192,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 54.4,
+        "vol_filter_pass": true
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-01-10",
+        "price": 251.29,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "exposure_pct": 100.0,
+        "risk_score": 23,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 11.2,
+        "risk_flags": [],
+        "var_95_pct": -1.5,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 71.5,
+        "vol_filter_pass": true
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-01-10",
+        "price": 67290.52,
+        "daily_change_pct": 0.54,
+        "signal": "LONG",
+        "exposure_pct": 100.0,
+        "risk_score": 62,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 17.9,
+        "risk_flags": [
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.985,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 60.1,
+        "vol_filter_pass": true
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-05T22:57:17.287171",
+    "market_date": "2026-01-10",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-01-10",
+        "price": 655.83,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 30.0,
+        "risk_score": 15,
+        "regime": "NORMAL",
+        "regime_confidence": 99.1,
+        "realized_vol_pct": 5.7,
+        "risk_flags": [],
+        "var_95_pct": -0.85,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 57.5,
+        "vol_filter_pass": true
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-01-10",
+        "price": 584.98,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 25.0,
+        "risk_score": 21,
+        "regime": "NORMAL",
+        "regime_confidence": 93.0,
+        "realized_vol_pct": 7.2,
+        "risk_flags": [],
+        "var_95_pct": -1.192,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 54.4,
+        "vol_filter_pass": true
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-01-10",
+        "price": 251.29,
+        "daily_change_pct": 0.0,
+        "signal": "LONG",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 25.0,
+        "risk_score": 23,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 11.2,
+        "risk_flags": [],
+        "var_95_pct": -1.5,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 71.5,
+        "vol_filter_pass": true
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-01-10",
+        "price": 67290.52,
+        "daily_change_pct": 0.54,
+        "signal": "LONG",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 20.0,
+        "risk_score": 62,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 17.9,
+        "risk_flags": [
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.985,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 60.1,
+        "vol_filter_pass": true
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T00:26:13.043450",
+    "market_date": "2026-04-04",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-04",
+        "price": 655.83,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 67,
+        "regime": "CRISIS",
+        "regime_confidence": 89.5,
+        "realized_vol_pct": 16.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME"
+        ],
+        "var_95_pct": -1.221,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 55.9,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-04",
+        "price": 584.98,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 81,
+        "regime": "CRISIS",
+        "regime_confidence": 59.4,
+        "realized_vol_pct": 20.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "REGIME_UNSTABLE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.809,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 52.6,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-04",
+        "price": 251.29,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 72,
+        "regime": "CRISIS",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 21.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.8,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 63.5,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-04",
+        "price": 67290.52,
+        "daily_change_pct": 0.54,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 34.9,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -3.869,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 45.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T00:36:39.053855",
+    "market_date": "2026-04-04",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-04",
+        "price": 655.83,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 67,
+        "regime": "CRISIS",
+        "regime_confidence": 89.5,
+        "realized_vol_pct": 16.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME"
+        ],
+        "var_95_pct": -1.221,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 55.9,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-04",
+        "price": 584.98,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 81,
+        "regime": "CRISIS",
+        "regime_confidence": 59.4,
+        "realized_vol_pct": 20.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "REGIME_UNSTABLE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.809,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 52.6,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-04",
+        "price": 251.29,
+        "daily_change_pct": 0.0,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 72,
+        "regime": "CRISIS",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 21.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.8,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 63.5,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-04",
+        "price": 67290.52,
+        "daily_change_pct": 0.54,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 34.9,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -3.869,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 45.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T00:40:37.355410",
+    "market_date": "2026-04-02",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-02",
+        "price": 655.83,
+        "daily_change_pct": 0.09,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 75,
+        "regime": "CRISIS",
+        "regime_confidence": 57.5,
+        "realized_vol_pct": 18.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "REGIME_UNSTABLE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0468,
+        "above_sma50": false,
+        "rsi_14": 47.4,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-02",
+        "price": 584.98,
+        "daily_change_pct": 0.11,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 86,
+        "regime": "NORMAL",
+        "regime_confidence": 51.6,
+        "realized_vol_pct": 22.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "REGIME_UNSTABLE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0496,
+        "above_sma50": false,
+        "rsi_14": 46.1,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-02",
+        "price": 251.29,
+        "daily_change_pct": 0.69,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 79,
+        "regime": "CRISIS",
+        "regime_confidence": 99.5,
+        "realized_vol_pct": 25.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.046,
+        "above_sma50": false,
+        "rsi_14": 55.3,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-02",
+        "price": 66888.57,
+        "daily_change_pct": -1.75,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 37.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 39.4,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T21:53:54.364799",
+    "market_date": "2026-04-02",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-02",
+        "price": 655.83,
+        "daily_change_pct": 0.09,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 75,
+        "regime": "CRISIS",
+        "regime_confidence": 57.5,
+        "realized_vol_pct": 18.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "REGIME_UNSTABLE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0468,
+        "above_sma50": false,
+        "rsi_14": 47.4,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-02",
+        "price": 584.98,
+        "daily_change_pct": 0.11,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 86,
+        "regime": "NORMAL",
+        "regime_confidence": 51.6,
+        "realized_vol_pct": 22.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "REGIME_UNSTABLE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0496,
+        "above_sma50": false,
+        "rsi_14": 46.1,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-02",
+        "price": 251.29,
+        "daily_change_pct": 0.69,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 79,
+        "regime": "CRISIS",
+        "regime_confidence": 99.5,
+        "realized_vol_pct": 25.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.046,
+        "above_sma50": false,
+        "rsi_14": 55.3,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-02",
+        "price": 66888.57,
+        "daily_change_pct": -1.75,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 37.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 39.4,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T21:54:59.614434",
+    "market_date": "2026-04-02",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-02",
+        "price": 655.83,
+        "daily_change_pct": 0.09,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 75,
+        "regime": "CRISIS",
+        "regime_confidence": 57.5,
+        "realized_vol_pct": 18.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "REGIME_UNSTABLE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0468,
+        "above_sma50": false,
+        "rsi_14": 47.4,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-02",
+        "price": 584.98,
+        "daily_change_pct": 0.11,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 86,
+        "regime": "NORMAL",
+        "regime_confidence": 51.6,
+        "realized_vol_pct": 22.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "REGIME_UNSTABLE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0496,
+        "above_sma50": false,
+        "rsi_14": 46.1,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-02",
+        "price": 251.29,
+        "daily_change_pct": 0.69,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 79,
+        "regime": "CRISIS",
+        "regime_confidence": 99.5,
+        "realized_vol_pct": 25.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.046,
+        "above_sma50": false,
+        "rsi_14": 55.3,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-02",
+        "price": 66888.57,
+        "daily_change_pct": -1.75,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 37.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 39.4,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T21:55:32.597126",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T22:18:00.442534",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T22:18:18.207419",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T22:18:49.734900",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T22:23:26.537467",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-06T22:24:15.754137",
+    "market_date": "2026-04-06",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-06",
+        "price": 658.93,
+        "daily_change_pct": 0.47,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 74,
+        "regime": "NORMAL",
+        "regime_confidence": 65.1,
+        "realized_vol_pct": 18.4,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.567,
+        "kelly_fraction": 0.0465,
+        "above_sma50": false,
+        "rsi_14": 45.2,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-06",
+        "price": 588.5,
+        "daily_change_pct": 0.6,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 83,
+        "regime": "NORMAL",
+        "regime_confidence": 72.2,
+        "realized_vol_pct": 22.3,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.98,
+        "kelly_fraction": 0.0494,
+        "above_sma50": false,
+        "rsi_14": 44.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-06",
+        "price": 252.36,
+        "daily_change_pct": 0.43,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 78,
+        "regime": "CRISIS",
+        "regime_confidence": 98.9,
+        "realized_vol_pct": 24.6,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -2.041,
+        "kelly_fraction": 0.0442,
+        "above_sma50": false,
+        "rsi_14": 54.1,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-06",
+        "price": 68981.9,
+        "daily_change_pct": 3.13,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 0.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 100.0,
+        "realized_vol_pct": 38.0,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.231,
+        "kelly_fraction": 0.0,
+        "above_sma50": false,
+        "rsi_14": 33.1,
+        "vol_filter_pass": false
+      }
+    }
+  },
+  {
+    "generated_at": "2026-04-09T18:28:31.362946",
+    "market_date": "2026-04-09",
+    "signals": {
+      "SPY": {
+        "asset": "SPY",
+        "date": "2026-04-09",
+        "price": 679.91,
+        "daily_change_pct": 0.58,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 30.0,
+        "exposure_pct": 0.0,
+        "risk_score": 70,
+        "regime": "NORMAL",
+        "regime_confidence": 93.1,
+        "realized_vol_pct": 19.9,
+        "risk_flags": [
+          "LOW_CONFIDENCE"
+        ],
+        "var_95_pct": -1.533,
+        "kelly_fraction": 0.0865,
+        "above_sma50": true,
+        "rsi_14": 61.5,
+        "vol_filter_pass": false
+      },
+      "QQQ": {
+        "asset": "QQQ",
+        "date": "2026-04-09",
+        "price": 610.19,
+        "daily_change_pct": 0.68,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 81,
+        "regime": "NORMAL",
+        "regime_confidence": 87.4,
+        "realized_vol_pct": 23.8,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.903,
+        "kelly_fraction": 0.0834,
+        "above_sma50": true,
+        "rsi_14": 58.4,
+        "vol_filter_pass": false
+      },
+      "IWM": {
+        "asset": "IWM",
+        "date": "2026-04-09",
+        "price": 261.96,
+        "daily_change_pct": 0.57,
+        "signal": "FLAT",
+        "portfolio_weight_pct": 25.0,
+        "exposure_pct": 0.0,
+        "risk_score": 79,
+        "regime": "CRISIS",
+        "regime_confidence": 97.2,
+        "realized_vol_pct": 25.1,
+        "risk_flags": [
+          "LOW_CONFIDENCE",
+          "CRISIS_REGIME",
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -1.991,
+        "kelly_fraction": 0.0745,
+        "above_sma50": true,
+        "rsi_14": 64.5,
+        "vol_filter_pass": false
+      },
+      "BTC": {
+        "asset": "BTC",
+        "date": "2026-04-09",
+        "price": 72794.11,
+        "daily_change_pct": 2.35,
+        "signal": "LONG",
+        "portfolio_weight_pct": 20.0,
+        "exposure_pct": 20.0,
+        "risk_score": 100,
+        "regime": "NORMAL",
+        "regime_confidence": 99.6,
+        "realized_vol_pct": 38.6,
+        "risk_flags": [
+          "DRAWDOWN_GUARD"
+        ],
+        "var_95_pct": -4.06,
+        "kelly_fraction": 0.0,
+        "above_sma50": true,
+        "rsi_14": 58.0,
+        "vol_filter_pass": true
+      }
+    }
+  }
+]

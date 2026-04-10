@@ -1,0 +1,65 @@
+[
+  {
+    "step": 0,
+    "action": "Raw merge of all data sources",
+    "rows_before": 6616,
+    "rows_after": 6616,
+    "cols": 38,
+    "total_missing": 46488,
+    "missing_pct": 18.4911,
+    "detail": "Merged 11 OHLCV sources + FRED + Fama-French"
+  },
+  {
+    "step": 1,
+    "action": "Remove duplicate timestamps",
+    "rows_before": 6616,
+    "rows_after": 6616,
+    "removed": 0,
+    "detail": "Kept last value for 0 duplicate dates"
+  },
+  {
+    "step": 2,
+    "action": "Calendar alignment analysis",
+    "rows_before": 6616,
+    "rows_after": 6616,
+    "detail": "BTC-only dates (weekends): 1301, SPY-only dates: 2443. Kept all dates; NaN indicates market closed."
+  },
+  {
+    "step": 3,
+    "action": "Forward-fill (limit=5 days, causal only \u2014 no backfill)",
+    "missing_before": 46488,
+    "missing_after": 12710,
+    "values_filled": 33778,
+    "detail": "Forward-fill propagates the last known value forward. Limit of 5 prevents filling across long data gaps (e.g., BTC not available before 2014). No backward fill is ever used \u2014 that would leak future data."
+  },
+  {
+    "step": 4,
+    "action": "Drop rows where any target instrument has NaN",
+    "rows_before": 6616,
+    "rows_after": 4173,
+    "rows_dropped": 2443,
+    "detail": "Dropped 2443 rows where at least one of ['spy', 'qqq', 'iwm', 'btc_usd'] was NaN. This aligns the dataset to the period where all instruments have data."
+  },
+  {
+    "step": 5,
+    "action": "Outlier detection (flagged, NOT removed)",
+    "method": "Z-score > 4 on daily log returns",
+    "outliers_per_instrument": {
+      "spy": 31,
+      "qqq": 26,
+      "iwm": 20,
+      "btc_usd": 26
+    },
+    "detail": "Extreme return outliers are FLAGGED but kept in the dataset. Removing them would erase real market events (crashes, squeezes). The regime model is expected to learn these as distinct market states."
+  },
+  {
+    "step": 6,
+    "action": "Final dataset state",
+    "rows": 4173,
+    "cols": 38,
+    "total_missing": 176,
+    "missing_pct": 0.111,
+    "date_range": "2014-09-17 \u2192 2026-02-18",
+    "detail": "Cleaned dataset ready for feature engineering."
+  }
+]

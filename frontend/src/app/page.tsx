@@ -10,6 +10,14 @@ export default function LandingPage() {
       <CursorGlow />
       <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
+
+        <div className="px-8 pt-4">
+          <div className="max-w-4xl mx-auto rounded-lg border px-4 py-2.5 flex items-center justify-center gap-2 text-xs" style={{ borderColor: "var(--card-border)", background: "var(--card)", color: "var(--muted)" }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-pulse" />
+            Heads up: the backend runs on a free tier and may take 30–50 seconds to wake up on first load. Refreshing signals can take a moment too.
+          </div>
+        </div>
+
         <HeroSection />
 
         <section className="px-8 py-16 border-t" style={{ borderColor: "var(--card-border)" }}>
